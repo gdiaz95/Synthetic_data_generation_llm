@@ -1,0 +1,22 @@
+[project]
+name = "synthetic-data-generation-llm"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Gabriel Diaz",email = "gdiaz95@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+]
+
+[tool.poetry]
+package-mode = false
+
+[virtualenvs]
+in-project = true
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
