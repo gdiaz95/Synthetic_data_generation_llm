@@ -1,2 +1,3 @@
 .venv/
 tests_1.ipynb
+.env
