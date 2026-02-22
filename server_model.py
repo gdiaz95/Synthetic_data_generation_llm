@@ -1,7 +1,19 @@
 import os
+import re
 import argparse
 import gc
+import subprocess
+from dataclasses import dataclass
+from typing import List, Optional
+
 from dotenv import load_dotenv
+
+
+@dataclass
+class GPUInfo:
+    index: int
+    total_gb: float
+    free_gb: float
 
 
 def parse_args():
@@ -14,13 +26,22 @@ def parse_args():
         default=os.getenv("MODEL_NAME", "mistralai/Mistral-7B-Instruct-v0.3"),
         help="HuggingFace model name or path",
     )
+    parser.add_argument(
+        "--model-size-gb",
+        type=float,
+        default=(float(os.getenv("MODEL_SIZE_GB")) if os.getenv("MODEL_SIZE_GB") else None),
+        help=(
+            "Approximate model size in GB. If omitted, an estimate is inferred from model name"
+            " (e.g., 7B -> ~14GB in fp16)."
+        ),
+    )
 
     # Hardware Settings
     parser.add_argument(
         "--gpus",
         type=str,
-        default=os.getenv("CUDA_VISIBLE_DEVICES", "2"),
-        help="Comma-separated GPU IDs (e.g., 0,2,5,7)",
+        default=os.getenv("CUDA_VISIBLE_DEVICES", ""),
+        help="Comma-separated GPU IDs to allow. Empty means auto-detect.",
     )
     parser.add_argument(
         "--tp",
@@ -46,6 +67,93 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_gpu_info() -> List[GPUInfo]:
+    cmd = [
+        "nvidia-smi",
+        "--query-gpu=index,memory.total,memory.free",
+        "--format=csv,noheader,nounits",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        return []
+
+    gpus: List[GPUInfo] = []
+    for line in proc.stdout.strip().splitlines():
+        if not line.strip():
+            continue
+        idx_s, total_mb_s, free_mb_s = [x.strip() for x in line.split(",")]
+        gpus.append(
+            GPUInfo(
+                index=int(idx_s),
+                total_gb=float(total_mb_s) / 1024.0,
+                free_gb=float(free_mb_s) / 1024.0,
+            )
+        )
+    return gpus
+
+
+def infer_model_size_gb(model_name: str) -> Optional[float]:
+    # e.g. "7B", "70b", "8x7B"
+    experts = re.search(r"(\d+)x(\d+(?:\.\d+)?)b", model_name, flags=re.IGNORECASE)
+    if experts:
+        total_b = float(experts.group(1)) * float(experts.group(2))
+        return total_b * 2.0  # fp16/bf16 ~2 bytes/param
+
+    match = re.search(r"(\d+(?:\.\d+)?)b", model_name, flags=re.IGNORECASE)
+    if match:
+        params_b = float(match.group(1))
+        return params_b * 2.0  # fp16/bf16
+
+    return None
+
+
+def select_gpus_for_model(
+    model_name: str,
+    tp_size: int,
+    gpu_util: float,
+    allowed_gpu_ids: Optional[List[int]] = None,
+    model_size_gb: Optional[float] = None,
+) -> (Optional[List[int]], str):
+    all_gpus = get_gpu_info()
+    if not all_gpus:
+        return None, "no gpus"
+
+    print("\n🖥️ GPU space on current machine:")
+    for g in all_gpus:
+        print(f"  - GPU {g.index}: free {g.free_gb:.2f} GB / total {g.total_gb:.2f} GB")
+
+    candidate_gpus = all_gpus
+    if allowed_gpu_ids:
+        allowed_set = set(allowed_gpu_ids)
+        candidate_gpus = [g for g in all_gpus if g.index in allowed_set]
+
+    if not candidate_gpus:
+        return None, "no free gpus"
+
+    if len(candidate_gpus) < tp_size:
+        return None, "no free gpus"
+
+    if model_size_gb is None:
+        model_size_gb = infer_model_size_gb(model_name)
+
+    if model_size_gb is None:
+        return None, "error loading model size"
+
+    # reserve some runtime headroom
+    required_total = model_size_gb * 1.20
+    required_per_gpu = required_total / tp_size
+
+    # free memory usable at requested utilization
+    sorted_gpus = sorted(candidate_gpus, key=lambda g: g.free_gb, reverse=True)
+    chosen = sorted_gpus[:tp_size]
+
+    lacking = [g for g in chosen if g.free_gb * gpu_util < required_per_gpu]
+    if lacking:
+        return None, "no space"
+
+    return [g.index for g in chosen], "ok"
+
+
 class MultiGPUServer:
     def __init__(self, args):
         self.model_name = args.model
@@ -53,15 +161,29 @@ class MultiGPUServer:
         self.gpu_util = args.utilization
         self.max_len = args.max_len
 
-        visible = [g.strip() for g in args.gpus.split(",") if g.strip() != ""]
-        if self.tp_size > len(visible):
-            raise ValueError(
-                f"--tp ({self.tp_size}) cannot be > number of visible GPUs ({len(visible)}) "
-                f"from --gpus='{args.gpus}'."
-            )
+        allowed = [int(g.strip()) for g in args.gpus.split(",") if g.strip() != ""]
+        selected_gpus, status = select_gpus_for_model(
+            model_name=self.model_name,
+            tp_size=self.tp_size,
+            gpu_util=self.gpu_util,
+            allowed_gpu_ids=allowed if allowed else None,
+            model_size_gb=args.model_size_gb,
+        )
+
+        if status != "ok":
+            message = {
+                "no gpus": "no gpus",
+                "no free gpus": "no free gpus",
+                "no space": "no space",
+                "error loading model size": "error loading model size",
+            }.get(status, "server could not be allocated")
+            raise RuntimeError(message)
+
+        self.selected_gpus = selected_gpus
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(g) for g in selected_gpus)
 
         print("🚀 Initializing vLLM")
-        print(f"📍 GPUs: {args.gpus} (TP Size: {self.tp_size})")
+        print(f"📍 GPUs: {self.selected_gpus} (TP Size: {self.tp_size})")
         print(f"📦 Model: {self.model_name}")
 
         try:
@@ -81,7 +203,7 @@ class MultiGPUServer:
                 gpu_memory_utilization=self.gpu_util,
                 max_model_len=self.max_len,
                 trust_remote_code=True,
-                enforce_eager=True,  # keep your setting
+                enforce_eager=True,
             )
         except Exception:
             self.cleanup()
@@ -130,19 +252,16 @@ class MultiGPUServer:
 
 
 if __name__ == "__main__":
-    # 1. Load defaults from .env if it exists
     load_dotenv(override=True)
-
-    # 2. Parse command line arguments
     args = parse_args()
 
-    # IMPORTANT: set CUDA_VISIBLE_DEVICES BEFORE importing vLLM/torch
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
-
+    server = None
     try:
         server = MultiGPUServer(args)
         test_res = server.generate_batch(["[INST] Hello, who are you in one sentence? [/INST]"])
         print(f"Response: {test_res[0]}")
+    except RuntimeError as err:
+        print(str(err))
     finally:
         if server is not None:
             server.cleanup()
