@@ -2,3 +2,6 @@
 tests_1.ipynb
 .env
 data/
+__pycache__/
+temp.py
+logs/
