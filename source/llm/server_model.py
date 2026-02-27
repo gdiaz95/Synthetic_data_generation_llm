@@ -16,26 +16,14 @@ class GPUInfo:
    used_mb: int
    utilization: int
 
-
-
-
 class GPUSelectionError(RuntimeError):
    """Raised when no usable GPU can be selected."""
-
-
-
 
 class ModelFitError(RuntimeError):
    """Raised when the selected model does not fit on a single GPU."""
 
-
-
-
 class APIModelConnectionError(RuntimeError):
    """Raised when a remote API model cannot be reached or authenticated."""
-
-
-
 
 def parse_args():
    parser = argparse.ArgumentParser(description="vLLM Single-GPU Server Script")
@@ -74,8 +62,6 @@ def parse_args():
    return parser.parse_args()
 
 
-
-
 def detect_gpus():
    cmd = [
        "nvidia-smi",
@@ -109,9 +95,6 @@ def detect_gpus():
        )
    return sorted(gpus, key=lambda gpu: gpu.index)
 
-
-
-
 def select_free_gpu(required_utilization):
    gpus = detect_gpus()
 
@@ -135,9 +118,6 @@ def select_free_gpu(required_utilization):
        f"(~{max_usable_mb}MB usable)"
    )
    return selected
-
-
-
 
 class SingleGPUServer:
    def __init__(self, args):
@@ -461,9 +441,6 @@ class SingleGPUServer:
 
        outputs = self.llm.generate(prompts, sampling_params)
        return [o.outputs[0].text.strip() for o in outputs]
-
-
-
 
 if __name__ == "__main__":
    load_dotenv(override=True)

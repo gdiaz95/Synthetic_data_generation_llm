@@ -16,11 +16,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm, rankdata
 
-__all__ = ["NPGC"]
+__all__ = ["NPGC_special"]
 
 LOGGER = logging.getLogger(__name__)
 
-class NPGC:
+#Special means it returns also the synth data in number space for llm debugging and analysis purposes. It is not a standard part of the API and may be removed in the future.
+class NPGC_special:
     """Non-parametric Gaussian copula synthesizer for tabular data."""
 
     def __init__(self, enforce_min_max_values: bool = True, epsilon: float | None = 1.0) -> None:
@@ -227,7 +228,8 @@ class NPGC:
         return {
             "correlation_matrix": final_corr_df,
             "marginals": marginals,
-            "columns": df.columns.tolist()
+            "columns": df.columns.tolist(),
+            "transformed_data": z_df,  # Store the Z-space data for potential debugging/analysis
         }
     
     def _get_nearest_correlation_matrix(self, matrix: np.ndarray) -> np.ndarray:
@@ -282,7 +284,7 @@ class NPGC:
             except Exception as e:
                 LOGGER.warning(f"Could not cast column '{col}': {e}")
 
-        return synthetic_data
+        return synthetic_data,z_correlated
 
     # ============================================================
     # Math Helper Methods
