@@ -7,6 +7,11 @@ from types import SimpleNamespace
 import pandas as pd
 import yaml
 from dotenv import load_dotenv
+import sys
+
+root_path = Path(__file__).resolve().parents[2]
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
 
 from source.llm.server_model import SingleGPUServer
 from source.pipelines.run_free_text import generate_job_descriptions

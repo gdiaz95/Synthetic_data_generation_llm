@@ -1,5 +1,5 @@
-input_csv: data/raw/adult_with_job_description.csv
-output_csv: data/processed/adults_synthetic.csv
+input_csv: data/small/adult_with_job_description.csv
+output_csv: data/processed/adults_synthetic_gemini_small.csv
 
 knn_k: 5
 epsilon: 1.0
