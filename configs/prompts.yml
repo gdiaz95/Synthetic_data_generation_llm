@@ -1,0 +1,19 @@
+neighbor_excerpt_words: 20
+job_description_prompt: |
+  Write a realistic job_description (40–{max_words} words) describing primary job duties and work setting.
+
+  Constraints:
+  - Max {max_words} words.
+  - No names, employer names, addresses, or specific company locations.
+  - No salary numbers.
+  - Natural prose (not a list). Neutral, survey-like.
+  - Stay consistent with the structured fields; if uncertain, keep it generic.
+  - Do NOT copy phrases from the neighbor snippets; use them only for general themes/style.
+
+  Structured fields (target profile):
+  {structured_fields}
+
+  Neighbor job-description snippets (for themes only; do not copy):
+  {neighbor_block}
+
+  Return ONLY the job_description text.
