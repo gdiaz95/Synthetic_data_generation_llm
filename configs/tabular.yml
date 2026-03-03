@@ -1,4 +1,4 @@
-input_csv: data/small/adult_with_job_description.csv
+input_csv: data/small/adult_with_job_description_small.csv
 output_csv: data/processed/adults_synthetic_gemini_small.csv
 
 knn_k: 5

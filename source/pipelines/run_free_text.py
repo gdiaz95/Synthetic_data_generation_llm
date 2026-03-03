@@ -57,38 +57,46 @@ def generate_job_descriptions(
     generated = synthetic_df.copy()
     generated["job_description"] = ""
 
-    for i in tqdm(range(len(generated)), desc="Generating job descriptions"):
-        neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
-        neighbor_texts = (
-            original_df.iloc[neighbor_pos]["job_description"]
-            .dropna()
-            .astype(str)
-            .tolist()
-        )
+    total_rows = len(generated)
+    batch_size = max(1, int(llm_cfg.get("batch_size", 1)))
+    generation_config = {
+        "temperature": float(llm_cfg["temperature"]),
+        "top_p": float(llm_cfg["top_p"]),
+        "max_tokens": int(llm_cfg["max_tokens"]),
+    }
 
-        prompt = build_prompt_from_structured_with_neighbors(
-            fields=generated.iloc[i].to_dict(),
-            prompt_template=prompt_cfg["job_description_prompt"],
-            max_words=int(llm_cfg["max_words"]),
-            neighbor_texts=neighbor_texts,
-            max_neighbors=int(llm_cfg["k_neighbors"]),
-            neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
-        )
+    for batch_start in tqdm(range(0, total_rows, batch_size), desc="Generating job descriptions"):
+        batch_end = min(batch_start + batch_size, total_rows)
+        batch_indices = list(range(batch_start, batch_end))
 
-        response_text = llm_server.generate_batch(
-            [prompt],
-            config={
-                "temperature": float(llm_cfg["temperature"]),
-                "top_p": float(llm_cfg["top_p"]),
-                "max_tokens": int(llm_cfg["max_tokens"]),
-            },
-        )[0]
+        prompts: list[str] = []
+        for i in batch_indices:
+            neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
+            neighbor_texts = (
+                original_df.iloc[neighbor_pos]["job_description"]
+                .dropna()
+                .astype(str)
+                .tolist()
+            )
 
-        generated.at[generated.index[i], "job_description"] = cap_words(
-            response_text,
-            int(llm_cfg["max_words"]),
-        )
+            prompt = build_prompt_from_structured_with_neighbors(
+                fields=generated.iloc[i].to_dict(),
+                prompt_template=prompt_cfg["job_description_prompt"],
+                max_words=int(llm_cfg["max_words"]),
+                neighbor_texts=neighbor_texts,
+                max_neighbors=int(llm_cfg["k_neighbors"]),
+                neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
+            )
+            prompts.append(prompt)
 
+        responses = llm_server.generate_batch(prompts, config=generation_config)
+
+        for i, response_text in zip(batch_indices, responses):
+            generated.at[generated.index[i], "job_description"] = cap_words(
+                response_text,
+                int(llm_cfg["max_words"]),
+            )
+            
         time.sleep(float(llm_cfg["sleep_sec"]))
 
     return generated
