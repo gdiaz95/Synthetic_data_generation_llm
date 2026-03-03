@@ -32,7 +32,7 @@ def parse_args():
    parser.add_argument(
        "--model",
        type=str,
-       default=os.getenv("MODEL_NAME", "mistralai/Mistral-7B-Instruct-v0.3"),
+       default="gemini-2.5-flash",
        help=(
            "Model name or path. Supports local vLLM models (HuggingFace/path) and "
            "API models like Gemini or GPT. CLI value has priority over .env."
@@ -42,19 +42,19 @@ def parse_args():
        "--provider",
        type=str,
        choices=["auto", "local", "gemini", "openai"],
-       default=os.getenv("MODEL_PROVIDER", "auto").lower(),
+       default="auto",
        help="Model backend provider. Defaults to auto detection.",
    )
    parser.add_argument(
        "--utilization",
        type=float,
-       default=float(os.getenv("GPU_MEMORY_UTILIZATION", "0.80")),
+       default=0.80,
        help="Fraction of GPU memory to reserve",
    )
    parser.add_argument(
        "--max-len",
        type=int,
-       default=int(os.getenv("MAX_MODEL_LEN", "4096")),
+       default=4096,
        help="Maximum sequence length",
    )
 
