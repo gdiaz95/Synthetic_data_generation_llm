@@ -23,18 +23,12 @@ def build_prompt_from_structured_with_neighbors(
     max_neighbors: int = 3,
     neighbor_excerpt_words: int = 20,
 ) -> str:
-    safe_keys = [
-        "age",
-        "workclass",
-        "education",
-        "marital-status",
-        "occupation",
-        "relationship",
-        "sex",
-        "hours-per-week",
-        "native-country",
-    ]
-    clean = {k: fields.get(k) for k in safe_keys if fields.get(k) is not None and pd.notna(fields.get(k))}
+    clean = {
+        key: value
+        for key, value in fields.items()
+        if key != "job_description" and value is not None and pd.notna(value)
+    }
+    
 
     snippets: list[str] = []
     if neighbor_texts:
