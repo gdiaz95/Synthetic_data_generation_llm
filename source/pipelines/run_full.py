@@ -14,7 +14,7 @@ if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
 from source.llm.server_model import SingleGPUServer
-from source.pipelines.run_free_text import generate_job_descriptions
+from source.pipelines.run_free_text import generate_free_text_column
 from source.pipelines.run_tabular import run_tabular_generation
 
 
@@ -31,7 +31,7 @@ def _read_yaml(path: Path) -> dict:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate synthetic tabular Adult dataset with LLM job descriptions.",
+        description="Generate synthetic tabular dataset with an LLM-generated free-text column.",
     )
     parser.add_argument("--tabular-config", type=Path, default=DEFAULT_CONFIG_DIR / "tabular.yml")
     parser.add_argument("--llm-config", type=Path, default=DEFAULT_CONFIG_DIR / "llm_generation.yml")
@@ -85,6 +85,7 @@ def main() -> None:
     print("\nResolved runtime settings:")
     print(f"- input_csv: {input_csv}")
     print(f"- output_csv: {output_csv}")
+    print(f"- text_column: {tabular_cfg.get('text_column', 'job_description')}")
     print(f"- tabular knn_k: {tabular_cfg['knn_k']}")
     print(f"- tabular epsilon: {tabular_cfg['epsilon']}")
     print(f"- enforce_min_max_values: {tabular_cfg['enforce_min_max_values']}")
@@ -105,11 +106,12 @@ def main() -> None:
     df = pd.read_csv(input_csv)
     print(f"Loaded dataframe with shape: {df.shape}")
 
-    if "job_description" not in df.columns:
-        raise ValueError("Expected column 'job_description' in input CSV.")
+    text_column = tabular_cfg.get("text_column", "job_description")
+    if text_column not in df.columns:
+        raise ValueError(f"Expected text column '{text_column}' in input CSV.")
 
     print("\n[1/3] Running tabular data generation...")
-    tabular_result = run_tabular_generation(df, tabular_cfg)
+    tabular_result = run_tabular_generation(df, tabular_cfg, text_column=text_column)
     print(
         "Tabular generation complete. "
         f"Synthetic shape: {tabular_result.synthetic_data.shape}; "
@@ -126,13 +128,14 @@ def main() -> None:
     llm_server = SingleGPUServer(server_args)
     try:
         print("\n[2/3] Running LLM free-text generation...")
-        generated = generate_job_descriptions(
+        generated = generate_free_text_column(
             llm_server=llm_server,
             original_df=df,
             synthetic_df=tabular_result.synthetic_data,
             nn_idx=tabular_result.nn_idx,
             llm_cfg=llm_cfg,
             prompt_cfg=prompt_cfg,
+            text_column=text_column,
         )
     finally:
         if llm_server.provider == "local":

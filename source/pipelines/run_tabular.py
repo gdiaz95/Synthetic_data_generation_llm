@@ -68,10 +68,14 @@ def knn_retrieval_step1(
     return nn_idx, nn_dist
 
 
-def run_tabular_generation(real_df: pd.DataFrame, tabular_cfg: dict) -> TabularGenerationResult:
+def run_tabular_generation(
+    real_df: pd.DataFrame,
+    tabular_cfg: dict,
+    text_column: str,
+) -> TabularGenerationResult:
     """Fit NPGC and generate synthetic tabular rows with neighbor indices."""
-    print("- Preparing tabular features (excluding 'job_description')...")
-    tabular_features = real_df.drop(columns=["job_description"])
+    print(f"- Preparing tabular features (excluding '{text_column}')...")
+    tabular_features = real_df.drop(columns=[text_column])
     print(f"- Tabular feature matrix shape: {tabular_features.shape}")
 
     print("- Initializing NPGC synthesizer...")

@@ -1,5 +1,6 @@
 input_csv: data/small/adult_with_job_description_small.csv
 output_csv: data/processed/adults_synthetic_small.csv
+text_column: job_description
 
 knn_k: 5
 epsilon: 1.0
