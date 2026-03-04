@@ -1,6 +1,6 @@
 neighbor_excerpt_words: 20
-job_description_prompt: |
-  Write a realistic job_description (40–{max_words} words) describing primary job duties and work setting.
+free_text_prompt: |
+  Write realistic {text_column} content (40–{max_words} words).
 
   Constraints:
   - Max {max_words} words.
@@ -13,7 +13,7 @@ job_description_prompt: |
   Structured fields (target profile):
   {structured_fields}
 
-  Neighbor job-description snippets (for themes only; do not copy):
+  Neighbor snippets from "{text_column}" (for themes only; do not copy):
   {neighbor_block}
 
-  Return ONLY the job_description text.
+  Return ONLY the {text_column} text.

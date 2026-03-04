@@ -19,6 +19,7 @@ def build_prompt_from_structured_with_neighbors(
     fields: dict[str, Any],
     prompt_template: str,
     max_words: int,
+    text_column: str,
     neighbor_texts: list[str] | None = None,
     max_neighbors: int = 3,
     neighbor_excerpt_words: int = 20,
@@ -26,9 +27,8 @@ def build_prompt_from_structured_with_neighbors(
     clean = {
         key: value
         for key, value in fields.items()
-        if key != "job_description" and value is not None and pd.notna(value)
+        if key != text_column and value is not None and pd.notna(value)
     }
-    
 
     snippets: list[str] = []
     if neighbor_texts:
@@ -41,22 +41,24 @@ def build_prompt_from_structured_with_neighbors(
 
     return prompt_template.format(
         max_words=max_words,
+        text_column=text_column,
         structured_fields=clean,
         neighbor_block=neighbor_block,
     ).strip()
 
 
-def generate_job_descriptions(
+def generate_free_text_column(
     llm_server: SingleGPUServer,
     original_df: pd.DataFrame,
     synthetic_df: pd.DataFrame,
     nn_idx,
     llm_cfg: dict,
     prompt_cfg: dict,
+    text_column: str,
 ) -> pd.DataFrame:
-    print("- Starting free-text generation stage...")
+    print(f"- Starting free-text generation stage for column '{text_column}'...")
     generated = synthetic_df.copy()
-    generated["job_description"] = ""
+    generated[text_column] = ""
 
     total_rows = len(generated)
     batch_size = max(1, int(llm_cfg.get("batch_size", 1)))
@@ -76,7 +78,7 @@ def generate_job_descriptions(
         f"max_words={int(llm_cfg['max_words'])}"
     )
 
-    for batch_start in tqdm(range(0, total_rows, batch_size), desc="Generating job descriptions"):
+    for batch_start in tqdm(range(0, total_rows, batch_size), desc=f"Generating {text_column}"):
         batch_end = min(batch_start + batch_size, total_rows)
         batch_indices = list(range(batch_start, batch_end))
         print(f"  • Generating batch rows [{batch_start}:{batch_end}]...")
@@ -84,17 +86,13 @@ def generate_job_descriptions(
         prompts: list[str] = []
         for i in batch_indices:
             neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
-            neighbor_texts = (
-                original_df.iloc[neighbor_pos]["job_description"]
-                .dropna()
-                .astype(str)
-                .tolist()
-            )
+            neighbor_texts = original_df.iloc[neighbor_pos][text_column].dropna().astype(str).tolist()
 
             prompt = build_prompt_from_structured_with_neighbors(
                 fields=generated.iloc[i].to_dict(),
-                prompt_template=prompt_cfg["job_description_prompt"],
+                prompt_template=prompt_cfg["free_text_prompt"],
                 max_words=int(llm_cfg["max_words"]),
+                text_column=text_column,
                 neighbor_texts=neighbor_texts,
                 max_neighbors=int(llm_cfg["k_neighbors"]),
                 neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
@@ -105,11 +103,11 @@ def generate_job_descriptions(
         print(f"  • Received {len(responses)} responses for current batch.")
 
         for i, response_text in zip(batch_indices, responses):
-            generated.at[generated.index[i], "job_description"] = cap_words(
+            generated.at[generated.index[i], text_column] = cap_words(
                 response_text,
                 int(llm_cfg["max_words"]),
             )
-            
+
         time.sleep(float(llm_cfg["sleep_sec"]))
 
     print("- Free-text generation complete.")
