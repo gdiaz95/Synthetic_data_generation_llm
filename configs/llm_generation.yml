@@ -1,6 +1,7 @@
 model: gemini-3.1-flash-lite-preview
 provider: auto
 
+# model: Qwen/Qwen2.5-14B-Instruct
 # MODEL_NAME=meta-llama/Llama-3.3-70B-Instruct
 # MODEL_NAME=Qwen/Qwen2.5-14B-Instruct
 # MODEL_NAME=Qwen/Qwen3-32B
