@@ -70,22 +70,33 @@ def knn_retrieval_step1(
 
 def run_tabular_generation(real_df: pd.DataFrame, tabular_cfg: dict) -> TabularGenerationResult:
     """Fit NPGC and generate synthetic tabular rows with neighbor indices."""
+    print("- Preparing tabular features (excluding 'job_description')...")
     tabular_features = real_df.drop(columns=["job_description"])
+    print(f"- Tabular feature matrix shape: {tabular_features.shape}")
 
+    print("- Initializing NPGC synthesizer...")
     synthesizer = NPGC_special(
         enforce_min_max_values=bool(tabular_cfg["enforce_min_max_values"]),
         epsilon=tabular_cfg["epsilon"],
     )
+    print("- Fitting NPGC synthesizer on tabular features...")
     synthesizer.fit(tabular_features)
 
     real_z = synthesizer._model_state["transformed_data"]
+    print("- Sampling synthetic tabular rows...")
     synthetic_data, z_correlated = synthesizer.sample(len(tabular_features))
+    print(
+        f"- Sampled synthetic rows: {synthetic_data.shape[0]} | "
+        f"Columns: {synthetic_data.shape[1]}"
+    )
 
+    print(f"- Running KNN retrieval in latent space with k={int(tabular_cfg['knn_k'])}...")
     nn_idx, _ = knn_retrieval_step1(
         real_z,
         z_correlated,
         k=int(tabular_cfg["knn_k"]),
     )
+    print("- Tabular generation and KNN retrieval complete.")
 
     return TabularGenerationResult(
         synthetic_data=synthetic_data,
