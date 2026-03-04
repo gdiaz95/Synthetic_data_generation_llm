@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from types import SimpleNamespace
-
+import re
 import pandas as pd
 import yaml
 from dotenv import load_dotenv
@@ -61,6 +61,9 @@ def _merge_with_cli(config: dict, args: argparse.Namespace) -> dict:
             merged[key] = value
     return merged
 
+def _with_model_suffix(output_csv: Path, model_name: str) -> Path:
+    safe_model = re.sub(r"[^A-Za-z0-9._-]+", "-", model_name).strip("-") or "model"
+    return output_csv.with_name(f"{output_csv.stem}_{safe_model}{output_csv.suffix}")
 
 def main() -> None:
     load_dotenv()
@@ -136,6 +139,7 @@ def main() -> None:
             llm_server.cleanup()
 
     print("[3/3] Saving generated dataset...")
+    output_csv = _with_model_suffix(output_csv, llm_server.model_name)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     generated.to_csv(output_csv, index=False)
     print(f"✅ Saved synthetic dataset to: {output_csv}")
