@@ -66,6 +66,12 @@ def main() -> None:
     load_dotenv()
     args = parse_args()
 
+    print("\n=== Synthetic Data Generation Pipeline ===")
+    print("Loading configuration files...")
+    print(f"- tabular config: {args.tabular_config}")
+    print(f"- llm config: {args.llm_config}")
+    print(f"- prompts config: {args.prompts_config}")
+
     tabular_cfg = _read_yaml(args.tabular_config)
     llm_cfg = _merge_with_cli(_read_yaml(args.llm_config), args)
     prompt_cfg = _read_yaml(args.prompts_config)
@@ -73,14 +79,39 @@ def main() -> None:
     input_csv = args.input_csv or Path(tabular_cfg["input_csv"])
     output_csv = args.output_csv or Path(tabular_cfg["output_csv"])
 
+    print("\nResolved runtime settings:")
+    print(f"- input_csv: {input_csv}")
+    print(f"- output_csv: {output_csv}")
+    print(f"- tabular knn_k: {tabular_cfg['knn_k']}")
+    print(f"- tabular epsilon: {tabular_cfg['epsilon']}")
+    print(f"- enforce_min_max_values: {tabular_cfg['enforce_min_max_values']}")
+    print(f"- llm model: {llm_cfg['model']}")
+    print(f"- llm provider: {llm_cfg.get('provider', 'auto')}")
+    print(f"- llm gpu_memory_utilization: {llm_cfg['gpu_memory_utilization']}")
+    print(f"- llm max_model_len: {llm_cfg['max_model_len']}")
+    print(f"- llm batch_size: {llm_cfg.get('batch_size', 1)}")
+    print(f"- llm temperature/top_p: {llm_cfg['temperature']}/{llm_cfg['top_p']}")
+    print(f"- llm max_tokens: {llm_cfg['max_tokens']}")
+    print(f"- llm max_words: {llm_cfg['max_words']}")
+    print(f"- prompt neighbor_excerpt_words: {prompt_cfg['neighbor_excerpt_words']}")
+
     if not input_csv.exists():
         raise FileNotFoundError(f"Input file not found: {input_csv}")
 
+    print(f"\nLoading input dataset from: {input_csv}")
     df = pd.read_csv(input_csv)
+    print(f"Loaded dataframe with shape: {df.shape}")
+
     if "job_description" not in df.columns:
         raise ValueError("Expected column 'job_description' in input CSV.")
 
+    print("\n[1/3] Running tabular data generation...")
     tabular_result = run_tabular_generation(df, tabular_cfg)
+    print(
+        "Tabular generation complete. "
+        f"Synthetic shape: {tabular_result.synthetic_data.shape}; "
+        f"KNN index shape: {tabular_result.nn_idx.shape}"
+    )
 
     server_args = SimpleNamespace(
         model=llm_cfg["model"],
@@ -91,6 +122,7 @@ def main() -> None:
 
     llm_server = SingleGPUServer(server_args)
     try:
+        print("\n[2/3] Running LLM free-text generation...")
         generated = generate_job_descriptions(
             llm_server=llm_server,
             original_df=df,
@@ -103,9 +135,10 @@ def main() -> None:
         if llm_server.provider == "local":
             llm_server.cleanup()
 
+    print("[3/3] Saving generated dataset...")
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     generated.to_csv(output_csv, index=False)
-    print(f"Saved synthetic dataset to: {output_csv}")
+    print(f"✅ Saved synthetic dataset to: {output_csv}")
 
 
 if __name__ == "__main__":

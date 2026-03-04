@@ -54,6 +54,7 @@ def generate_job_descriptions(
     llm_cfg: dict,
     prompt_cfg: dict,
 ) -> pd.DataFrame:
+    print("- Starting free-text generation stage...")
     generated = synthetic_df.copy()
     generated["job_description"] = ""
 
@@ -64,10 +65,21 @@ def generate_job_descriptions(
         "top_p": float(llm_cfg["top_p"]),
         "max_tokens": int(llm_cfg["max_tokens"]),
     }
+    print(f"- Total rows to generate: {total_rows}")
+    print(f"- Batch size: {batch_size}")
+    print(f"- K neighbors used in prompts: {int(llm_cfg['k_neighbors'])}")
+    print(
+        "- Generation config: "
+        f"temperature={generation_config['temperature']}, "
+        f"top_p={generation_config['top_p']}, "
+        f"max_tokens={generation_config['max_tokens']}, "
+        f"max_words={int(llm_cfg['max_words'])}"
+    )
 
     for batch_start in tqdm(range(0, total_rows, batch_size), desc="Generating job descriptions"):
         batch_end = min(batch_start + batch_size, total_rows)
         batch_indices = list(range(batch_start, batch_end))
+        print(f"  • Generating batch rows [{batch_start}:{batch_end}]...")
 
         prompts: list[str] = []
         for i in batch_indices:
@@ -90,6 +102,7 @@ def generate_job_descriptions(
             prompts.append(prompt)
 
         responses = llm_server.generate_batch(prompts, config=generation_config)
+        print(f"  • Received {len(responses)} responses for current batch.")
 
         for i, response_text in zip(batch_indices, responses):
             generated.at[generated.index[i], "job_description"] = cap_words(
@@ -98,5 +111,7 @@ def generate_job_descriptions(
             )
             
         time.sleep(float(llm_cfg["sleep_sec"]))
+
+    print("- Free-text generation complete.")
 
     return generated
