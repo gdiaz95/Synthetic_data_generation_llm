@@ -64,6 +64,12 @@ Controls **free-text generation** and model backend behavior.
 - **Note:** Not applied to Gemini/OpenAI API calls directly.
 - **Current value:** `4096`
 
+### `enforce_eager`
+- **What it is:** Enables eager execution mode in **local vLLM**.
+- **Used by:** Local vLLM initialization (`enforce_eager=...`).
+- **Effect:** `false` is usually faster (better graph/cuda optimization). `true` can help compatibility/debugging but often lowers throughput.
+- **Current value:** `false`
+
 ### `k_neighbors`
 - **What it is:** How many nearest original rows are used as neighbor snippets while crafting each free-text prompt.
 - **Used by:** `generate_job_descriptions(...)` to slice `nn_idx` and to cap number of neighbor excerpts included.
