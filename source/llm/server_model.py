@@ -58,6 +58,14 @@ def parse_args():
        default=4096,
        help="Maximum sequence length",
    )
+   parser.add_argument(
+       "--enforce-eager",
+       action="store_true",
+       help=(
+           "Force eager execution in vLLM. Leave disabled for better throughput on "
+           "most local GPU runs."
+       ),
+   )
 
 
    return parser.parse_args()
@@ -126,12 +134,15 @@ class SingleGPUServer:
        self.provider = self._resolve_provider(args.provider, self.model_name)
        self.gpu_util = args.utilization
        self.max_len = args.max_len
+       self.enforce_eager = bool(getattr(args, "enforce_eager", False))
        self.llm = None
 
 
        print("🚀 Initializing model server")
        print(f"📦 Model: {self.model_name}")
        print(f"🔌 Provider mode: {self.provider}")
+       if self.provider == "local":
+           print(f"⚙️  vLLM enforce_eager: {self.enforce_eager}")
 
 
        if self.provider == "local":
@@ -190,7 +201,7 @@ class SingleGPUServer:
                gpu_memory_utilization=self.gpu_util,
                max_model_len=self.max_len,
                trust_remote_code=True,
-               enforce_eager=True,
+               enforce_eager=self.enforce_eager,
            )
        except Exception as exc:
            self.cleanup()
@@ -521,7 +532,6 @@ if __name__ == "__main__":
    finally:
        if server is not None and server.provider == "local":
            server.cleanup()
-
 
 
 

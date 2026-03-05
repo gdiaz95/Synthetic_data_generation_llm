@@ -44,6 +44,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--provider", choices=["auto", "local", "gemini", "openai"], help="Override backend provider")
     parser.add_argument("--gpu-memory-utilization", type=float, help="Override GPU memory utilization")
     parser.add_argument("--max-model-len", type=int, help="Override max model length")
+    parser.add_argument(
+        "--enforce-eager",
+        action="store_true",
+        help="Force eager execution in local vLLM backend (usually slower).",
+    )
 
     return parser.parse_args()
 
@@ -123,6 +128,7 @@ def main() -> None:
         provider=llm_cfg.get("provider", "auto"),
         utilization=float(llm_cfg["gpu_memory_utilization"]),
         max_len=int(llm_cfg["max_model_len"]),
+        enforce_eager=bool(llm_cfg.get("enforce_eager", False) or args.enforce_eager),
     )
 
     llm_server = SingleGPUServer(server_args)
