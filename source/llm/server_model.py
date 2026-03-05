@@ -2,6 +2,7 @@ import argparse
 import gc
 import json
 import os
+import time
 import subprocess
 import urllib.error
 import urllib.request
@@ -240,6 +241,59 @@ class SingleGPUServer:
            return str(exc)
 
 
+   @staticmethod
+   def _is_retryable_http_error(status_code):
+       return status_code in {408, 429, 500, 502, 503, 504}
+
+
+   def _retry_gemini_request(self, make_request):
+       max_attempts = 5
+       base_wait_seconds = 2
+
+       for attempt in range(1, max_attempts + 1):
+           try:
+               return make_request()
+           except urllib.error.HTTPError as exc:
+               details = self._safe_read_http_error(exc)
+               if self._is_retryable_http_error(exc.code) and attempt < max_attempts:
+                   wait_seconds = base_wait_seconds * attempt
+                   print(
+                       f"⚠️  Gemini request failed with HTTP {exc.code}. "
+                       f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
+                   )
+                   time.sleep(wait_seconds)
+                   continue
+               raise APIModelConnectionError(
+                   "Couldn't connect to Gemini API. Check model name and API key. "
+                   f"Details: {details}"
+               ) from exc
+           except urllib.error.URLError as exc:
+               if attempt < max_attempts:
+                   wait_seconds = base_wait_seconds * attempt
+                   print(
+                       "⚠️  Gemini request failed due to a network error. "
+                       f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
+                   )
+                   time.sleep(wait_seconds)
+                   continue
+               raise APIModelConnectionError(
+                   "Couldn't connect to Gemini API. Check network access and API key."
+               ) from exc
+           except Exception as exc:
+               if attempt < max_attempts:
+                   wait_seconds = base_wait_seconds * attempt
+                   print(
+                       "⚠️  Gemini request raised an unexpected error. "
+                       f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
+                   )
+                   time.sleep(wait_seconds)
+                   continue
+               raise APIModelConnectionError(
+                   "Couldn't connect to Gemini API. Check model name and API key. "
+                   f"Details: {exc}"
+               ) from exc
+
+
    def _generate_with_gemini_rest(self, prompt, config, model_name):
        generation_cfg = {
        "temperature": config.get("temperature", 0.7),
@@ -266,19 +320,12 @@ class SingleGPUServer:
        )
 
 
-       try:
+       def _request():
            with urllib.request.urlopen(request, timeout=45) as response:
-               data = json.loads(response.read().decode("utf-8"))
-       except urllib.error.HTTPError as exc:
-           details = self._safe_read_http_error(exc)
-           raise APIModelConnectionError(
-               "Couldn't connect to Gemini API. Check model name and API key. "
-               f"Details: {details}"
-           ) from exc
-       except urllib.error.URLError as exc:
-           raise APIModelConnectionError(
-               "Couldn't connect to Gemini API. Check network access and API key."
-           ) from exc
+               return json.loads(response.read().decode("utf-8"))
+
+
+       data = self._retry_gemini_request(_request)
 
 
        candidates = data.get("candidates") or []
@@ -310,17 +357,15 @@ class SingleGPUServer:
        }
 
 
-       try:
-           response = self._gemini_client.models.generate_content(
+       def _request():
+           return self._gemini_client.models.generate_content(
                model=model_name,
                contents=prompt,
                config=generation_config,
            )
-       except Exception as exc:
-           raise APIModelConnectionError(
-               "Couldn't connect to Gemini API. Check model name and API key. "
-               f"Details: {exc}"
-           ) from exc
+
+
+       response = self._retry_gemini_request(_request)
 
 
        text = getattr(response, "text", None)
@@ -457,7 +502,6 @@ if __name__ == "__main__":
    finally:
        if server is not None and server.provider == "local":
            server.cleanup()
-
 
 
 
