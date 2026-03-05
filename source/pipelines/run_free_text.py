@@ -66,6 +66,7 @@ def generate_free_text_column(
         "temperature": float(llm_cfg["temperature"]),
         "top_p": float(llm_cfg["top_p"]),
         "max_tokens": int(llm_cfg["max_tokens"]),
+        "stop_sequences": llm_cfg.get("stop_sequences"),
     }
     print(f"- Total rows to generate: {total_rows}")
     print(f"- Batch size: {batch_size}")

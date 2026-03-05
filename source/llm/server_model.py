@@ -462,6 +462,21 @@ class SingleGPUServer:
        print("✅ Cleanup complete.")
 
 
+   def _default_local_stop_sequences(self):
+       """Conservative stop strings for common local chat templates."""
+       return [
+           "[INST]",
+           "[/INST]",
+           "</s>",
+           "<|im_start|>",
+           "<|im_end|>",
+           "<|start_header_id|>",
+           "<|end_header_id|>",
+           "<|eot_id|>",
+           "<|end_of_text|>",
+       ]
+
+
    def generate_batch(self, prompts, config=None):
        if config is None:
            config = {}
@@ -475,12 +490,16 @@ class SingleGPUServer:
            return [self._generate_with_openai(prompt, config) for prompt in prompts]
 
 
+       stop_sequences = config.get("stop_sequences")
+       if stop_sequences is None:
+           stop_sequences = self._default_local_stop_sequences()
+
        sampling_params = self._SamplingParams(
            temperature=config.get("temperature", 0.7),
            top_p=config.get("top_p", 0.95),
            max_tokens=config.get("max_tokens", 512),
            repetition_penalty=config.get("repetition_penalty", 1.1),
-           stop=["[INST]", "</s>", "[/INST]"],
+           stop=stop_sequences,
        )
 
 
