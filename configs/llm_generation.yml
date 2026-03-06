@@ -31,3 +31,6 @@ stop_sequences:
   - "<|end_of_text|>"
 sleep_sec: 0.1
 batch_size: 8
+
+# Optional: print one detailed per-batch line every N batches (0 disables).
+batch_log_every: 0
