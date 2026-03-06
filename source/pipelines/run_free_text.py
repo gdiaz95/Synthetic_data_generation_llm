@@ -73,7 +73,7 @@ def build_prompt_from_structured_with_neighbors(
     prompt_template: str,
     max_words: int,
     text_column: str,
-    neighbor_texts: list[str] | None = None,
+    neighbor_rows: list[dict[str, Any]] | None = None,
     max_neighbors: int = 3,
     neighbor_excerpt_words: int = 20,
 ) -> str:
@@ -84,11 +84,20 @@ def build_prompt_from_structured_with_neighbors(
     }
 
     snippets: list[str] = []
-    if neighbor_texts:
-        for text in neighbor_texts[:max_neighbors]:
-            excerpt = cap_words(str(text), neighbor_excerpt_words)
+    if neighbor_rows:
+        for idx, row in enumerate(neighbor_rows[:max_neighbors], start=1):
+            row_fields = {
+                key: value
+                for key, value in row.items()
+                if key != text_column and value is not None and pd.notna(value)
+            }
+            excerpt = cap_words(str(row.get(text_column, "")), neighbor_excerpt_words)
             if excerpt:
-                snippets.append(f"- {excerpt}")
+                snippets.append(
+                    f"- Neighbor {idx}\\n"
+                    f"  profile: {row_fields}\\n"
+                    f"  {text_column}: {excerpt}"
+                )
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
 
@@ -151,16 +160,22 @@ def generate_free_text_column(
         prompts: list[str] = []
         for i in batch_indices:
             neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
-            raw_neighbor_texts = original_df.iloc[neighbor_pos][text_column].dropna().astype(str).tolist()
-            neighbor_texts = [sanitize_neighbor_text(t) for t in raw_neighbor_texts]
-            neighbor_texts = [t for t in neighbor_texts if t]
+            neighbor_rows = original_df.iloc[neighbor_pos].to_dict("records")
+            sanitized_neighbor_rows: list[dict[str, Any]] = []
+            for row in neighbor_rows:
+                sanitized = sanitize_neighbor_text(str(row.get(text_column, "")))
+                if not sanitized:
+                    continue
+                row_copy = dict(row)
+                row_copy[text_column] = sanitized
+                sanitized_neighbor_rows.append(row_copy)
 
             prompt = build_prompt_from_structured_with_neighbors(
                 fields=generated.iloc[i].to_dict(),
                 prompt_template=prompt_cfg["free_text_prompt"],
                 max_words=int(llm_cfg["max_words"]),
                 text_column=text_column,
-                neighbor_texts=neighbor_texts,
+                neighbor_rows=sanitized_neighbor_rows,
                 max_neighbors=int(llm_cfg["k_neighbors"]),
                 neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
             )
