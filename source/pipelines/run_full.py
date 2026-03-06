@@ -91,7 +91,9 @@ def main() -> None:
     print(f"- input_csv: {input_csv}")
     print(f"- output_csv: {output_csv}")
     print(f"- text_column: {tabular_cfg.get('text_column', 'job_description')}")
-    print(f"- tabular knn_k: {tabular_cfg['knn_k']}")
+    neighbor_k = int(tabular_cfg['knn_k'])
+    print(f"- shared neighbor_k (from tabular.knn_k): {neighbor_k}")
+    llm_cfg['k_neighbors'] = neighbor_k
     print(f"- tabular epsilon: {tabular_cfg['epsilon']}")
     print(f"- enforce_min_max_values: {tabular_cfg['enforce_min_max_values']}")
     print(f"- llm model: {llm_cfg['model']}")
