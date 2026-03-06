@@ -10,6 +10,59 @@ from tqdm import tqdm
 from source.llm.server_model import SingleGPUServer
 
 
+
+META_PHRASES = [
+    "[end]",
+    "to ensure adherence",
+    "word count",
+    "fits constraints",
+    "ignore previous",
+    "return only",
+    "here's your requested",
+]
+
+
+def sanitize_neighbor_text(text: str) -> str:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return ""
+
+    lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+    safe_lines: list[str] = []
+    for line in lines:
+        lower = line.lower()
+        if any(phrase in lower for phrase in META_PHRASES):
+            continue
+        safe_lines.append(line)
+
+    sanitized = " ".join(safe_lines).strip()
+    sanitized = re.sub(r"\s+", " ", sanitized)
+    return sanitized
+
+
+def clean_generated_text(text: str) -> str:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return ""
+
+    lower = cleaned.lower()
+    for phrase in META_PHRASES:
+        idx = lower.find(phrase)
+        if idx != -1:
+            cleaned = cleaned[:idx].strip()
+            lower = cleaned.lower()
+
+    cleaned = re.sub(r"\[[^\]]*\]", "", cleaned).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned
+
+
+def looks_like_meta_output(text: str) -> bool:
+    if not text:
+        return True
+    lower = text.lower()
+    return any(phrase in lower for phrase in META_PHRASES)
+
 def cap_words(text: str, max_words: int) -> str:
     words = re.findall(r"\S+", (text or "").strip())
     return " ".join(words[:max_words]).strip()
@@ -87,7 +140,9 @@ def generate_free_text_column(
         prompts: list[str] = []
         for i in batch_indices:
             neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
-            neighbor_texts = original_df.iloc[neighbor_pos][text_column].dropna().astype(str).tolist()
+            raw_neighbor_texts = original_df.iloc[neighbor_pos][text_column].dropna().astype(str).tolist()
+            neighbor_texts = [sanitize_neighbor_text(t) for t in raw_neighbor_texts]
+            neighbor_texts = [t for t in neighbor_texts if t]
 
             prompt = build_prompt_from_structured_with_neighbors(
                 fields=generated.iloc[i].to_dict(),
@@ -104,8 +159,11 @@ def generate_free_text_column(
         print(f"  • Received {len(responses)} responses for current batch.")
 
         for i, response_text in zip(batch_indices, responses):
+            cleaned_response = clean_generated_text(response_text)
+            if looks_like_meta_output(cleaned_response):
+                cleaned_response = ""
             generated.at[generated.index[i], text_column] = cap_words(
-                response_text,
+                cleaned_response,
                 int(llm_cfg["max_words"]),
             )
 
