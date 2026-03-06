@@ -91,7 +91,8 @@ def main() -> None:
     print(f"- input_csv: {input_csv}")
     print(f"- output_csv: {output_csv}")
     print(f"- text_column: {tabular_cfg.get('text_column', 'job_description')}")
-    print(f"- tabular knn_k: {tabular_cfg['knn_k']}")
+    neighbor_k = int(tabular_cfg['knn_k'])
+    print(f"- shared neighbor_k: {neighbor_k}")
     print(f"- tabular epsilon: {tabular_cfg['epsilon']}")
     print(f"- enforce_min_max_values: {tabular_cfg['enforce_min_max_values']}")
     print(f"- llm model: {llm_cfg['model']}")
@@ -142,6 +143,7 @@ def main() -> None:
             llm_cfg=llm_cfg,
             prompt_cfg=prompt_cfg,
             text_column=text_column,
+            neighbor_k=neighbor_k,
         )
     finally:
         if llm_server.provider == "local":

@@ -108,6 +108,7 @@ def generate_free_text_column(
     llm_cfg: dict,
     prompt_cfg: dict,
     text_column: str,
+    neighbor_k: int,
 ) -> pd.DataFrame:
     print(f"- Starting free-text generation stage for column '{text_column}'...")
     generated = synthetic_df.copy()
@@ -123,7 +124,7 @@ def generate_free_text_column(
     }
     print(f"- Total rows to generate: {total_rows}")
     print(f"- Batch size: {batch_size}")
-    print(f"- K neighbors used in prompts: {int(llm_cfg['k_neighbors'])}")
+    print(f"- K neighbors used in prompts: {int(neighbor_k)}")
     print(
         "- Generation config: "
         f"temperature={generation_config['temperature']}, "
@@ -150,7 +151,7 @@ def generate_free_text_column(
 
         prompts: list[str] = []
         for i in batch_indices:
-            neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
+            neighbor_pos = nn_idx[i, : int(neighbor_k)]
             raw_neighbor_texts = original_df.iloc[neighbor_pos][text_column].dropna().astype(str).tolist()
             neighbor_texts = [sanitize_neighbor_text(t) for t in raw_neighbor_texts]
             neighbor_texts = [t for t in neighbor_texts if t]
@@ -161,7 +162,7 @@ def generate_free_text_column(
                 max_words=int(llm_cfg["max_words"]),
                 text_column=text_column,
                 neighbor_texts=neighbor_texts,
-                max_neighbors=int(llm_cfg["k_neighbors"]),
+                max_neighbors=int(neighbor_k),
                 neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
             )
             prompts.append(prompt)

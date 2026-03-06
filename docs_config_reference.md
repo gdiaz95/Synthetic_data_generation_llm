@@ -21,6 +21,7 @@ Controls **tabular synthetic data generation** (structured columns).
 - **What it is:** Number of nearest real neighbors to retrieve for each synthetic tabular row in latent space.
 - **Used by:** `run_tabular_generation(...)` in the KNN retrieval step.
 - **Effect:** Higher values consider more real rows when mapping synthetic records back to similar original examples.
+- **Also used by:** free-text prompt construction (`generate_free_text_column(...)`) as the number of neighbor snippets.
 - **Current value:** `5`
 
 ### `epsilon`
@@ -69,11 +70,6 @@ Controls **free-text generation** and model backend behavior.
 - **Used by:** Local vLLM initialization (`enforce_eager=...`).
 - **Effect:** `false` is usually faster (better graph/cuda optimization). `true` can help compatibility/debugging but often lowers throughput.
 - **Current value:** `false`
-
-### `k_neighbors`
-- **What it is:** How many nearest original rows are used as neighbor snippets while crafting each free-text prompt.
-- **Used by:** `generate_job_descriptions(...)` to slice `nn_idx` and to cap number of neighbor excerpts included.
-- **Current value:** `5`
 
 ### `max_words`
 - **What it is:** Hard cap on generated `job_description` word count.
