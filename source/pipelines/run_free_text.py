@@ -79,10 +79,21 @@ def generate_free_text_column(
         f"max_words={int(llm_cfg['max_words'])}"
     )
 
-    for batch_start in tqdm(range(0, total_rows, batch_size), desc=f"Generating {text_column}"):
+    batch_log_every = max(0, int(llm_cfg.get("batch_log_every", 0)))
+    if batch_log_every:
+        print(f"- Batch detail logging enabled every {batch_log_every} batch(es).")
+    else:
+        print("- Batch detail logging disabled (set llm.batch_log_every > 0 to enable).")
+
+    progress = tqdm(
+        range(0, total_rows, batch_size),
+        desc=f"Generating {text_column}",
+        dynamic_ncols=True,
+    )
+
+    for batch_num, batch_start in enumerate(progress, start=1):
         batch_end = min(batch_start + batch_size, total_rows)
         batch_indices = list(range(batch_start, batch_end))
-        print(f"  • Generating batch rows [{batch_start}:{batch_end}]...")
 
         prompts: list[str] = []
         for i in batch_indices:
@@ -101,7 +112,13 @@ def generate_free_text_column(
             prompts.append(prompt)
 
         responses = llm_server.generate_batch(prompts, config=generation_config)
-        print(f"  • Received {len(responses)} responses for current batch.")
+
+        if batch_log_every and batch_num % batch_log_every == 0:
+            progress.write(
+                "  • Batch "
+                f"{batch_num}: rows [{batch_start}:{batch_end}] "
+                f"-> received {len(responses)} response(s)."
+            )
 
         for i, response_text in zip(batch_indices, responses):
             generated.at[generated.index[i], text_column] = cap_words(
