@@ -14,7 +14,9 @@ gpu_memory_utilization: 0.80
 max_model_len: 4096
 enforce_eager: false
 
+# auto-overridden by tabular.knn_k in run_full.py (kept for merge compatibility)
 k_neighbors: 5
+
 max_words: 80
 temperature: 0.8
 top_p: 0.95

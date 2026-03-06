@@ -21,6 +21,7 @@ Controls **tabular synthetic data generation** (structured columns).
 - **What it is:** Number of nearest real neighbors to retrieve for each synthetic tabular row in latent space.
 - **Used by:** `run_tabular_generation(...)` in the KNN retrieval step.
 - **Effect:** Higher values consider more real rows when mapping synthetic records back to similar original examples.
+- **Also used by:** free-text prompt construction by being copied into `llm_cfg['k_neighbors']` in `run_full.py`.
 - **Current value:** `5`
 
 ### `epsilon`
@@ -71,8 +72,9 @@ Controls **free-text generation** and model backend behavior.
 - **Current value:** `false`
 
 ### `k_neighbors`
-- **What it is:** How many nearest original rows are used as neighbor snippets while crafting each free-text prompt.
-- **Used by:** `generate_job_descriptions(...)` to slice `nn_idx` and to cap number of neighbor excerpts included.
+- **What it is:** Legacy/compatibility field in LLM config for prompt neighbor count.
+- **Used by:** `generate_free_text_column(...)`, but it is auto-overridden from `tabular.knn_k` in `run_full.py`.
+- **Recommendation:** Treat `tabular.knn_k` as the only user-facing control.
 - **Current value:** `5`
 
 ### `max_words`
