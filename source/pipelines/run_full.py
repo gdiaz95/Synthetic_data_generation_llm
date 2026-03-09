@@ -104,6 +104,8 @@ def main() -> None:
     print(f"- llm temperature/top_p: {llm_cfg['temperature']}/{llm_cfg['top_p']}")
     print(f"- llm max_tokens: {llm_cfg['max_tokens']}")
     print(f"- llm max_words: {llm_cfg['max_words']}")
+    print(f"- llm parallel_api_calls: {bool(llm_cfg.get('parallel_api_calls', False))}")
+    print(f"- llm api_parallel_shards: {int(llm_cfg.get('api_parallel_shards', 5))}")
     print(f"- prompt neighbor_excerpt_words: {prompt_cfg['neighbor_excerpt_words']}")
 
     if not input_csv.exists():

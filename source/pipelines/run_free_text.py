@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import pandas as pd
@@ -147,16 +148,20 @@ def generate_free_text_column(
     else:
         print("- Batch detail logging disabled (set llm.batch_log_every > 0 to enable).")
 
-    progress = tqdm(
-        range(0, total_rows, batch_size),
-        desc=f"Generating {text_column}",
-        dynamic_ncols=True,
-    )
+    parallel_api_calls = bool(llm_cfg.get("parallel_api_calls", False))
+    api_parallel_shards = max(1, int(llm_cfg.get("api_parallel_shards", 5)))
+    if llm_server.provider in {"gemini", "openai"} and parallel_api_calls:
+        print(
+            "- Parallel API mode: enabled "
+            f"(provider={llm_server.provider}, shards={api_parallel_shards})."
+        )
+    else:
+        print(
+            "- Parallel API mode: disabled "
+            "(either flag is false or provider is local)."
+        )
 
-    for batch_num, batch_start in enumerate(progress, start=1):
-        batch_end = min(batch_start + batch_size, total_rows)
-        batch_indices = list(range(batch_start, batch_end))
-
+    def _build_prompts_for_indices(batch_indices: list[int]) -> list[str]:
         prompts: list[str] = []
         for i in batch_indices:
             neighbor_pos = nn_idx[i, : int(llm_cfg["k_neighbors"])]
@@ -180,26 +185,99 @@ def generate_free_text_column(
                 neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
             )
             prompts.append(prompt)
+        return prompts
 
+    def _process_batch(batch_indices: list[int]) -> dict[int, str]:
+        prompts = _build_prompts_for_indices(batch_indices)
         responses = llm_server.generate_batch(prompts, config=generation_config)
-
-        if batch_log_every and batch_num % batch_log_every == 0:
-            progress.write(
-                "  • Batch "
-                f"{batch_num}: rows [{batch_start}:{batch_end}] "
-                f"-> received {len(responses)} response(s)."
-            )
-
+        row_updates: dict[int, str] = {}
         for i, response_text in zip(batch_indices, responses):
             cleaned_response = clean_generated_text(response_text)
             if looks_like_meta_output(cleaned_response):
                 cleaned_response = ""
-            generated.at[generated.index[i], text_column] = cap_words(
+            row_updates[i] = cap_words(
                 cleaned_response,
                 int(llm_cfg["max_words"]),
             )
+        return row_updates
 
-        time.sleep(float(llm_cfg["sleep_sec"]))
+    def _run_sequential() -> pd.DataFrame:
+        progress = tqdm(
+            range(0, total_rows, batch_size),
+            desc=f"Generating {text_column}",
+            dynamic_ncols=True,
+        )
+
+        for batch_num, batch_start in enumerate(progress, start=1):
+            batch_end = min(batch_start + batch_size, total_rows)
+            batch_indices = list(range(batch_start, batch_end))
+            row_updates = _process_batch(batch_indices)
+
+            if batch_log_every and batch_num % batch_log_every == 0:
+                progress.write(
+                    "  • Batch "
+                    f"{batch_num}: rows [{batch_start}:{batch_end}] "
+                    f"-> received {len(batch_indices)} response(s)."
+                )
+
+            for i, text in row_updates.items():
+                generated.at[generated.index[i], text_column] = text
+
+            time.sleep(float(llm_cfg["sleep_sec"]))
+
+        return generated
+
+    def _run_parallel_api() -> pd.DataFrame:
+        shard_indices = [
+            list(range(start, total_rows, api_parallel_shards))
+            for start in range(api_parallel_shards)
+        ]
+        shard_indices = [indices for indices in shard_indices if indices]
+
+        progress_bars = []
+        for shard_id, indices in enumerate(shard_indices):
+            bar = tqdm(
+                total=len(indices),
+                desc=f"Shard {shard_id + 1}/{len(shard_indices)}",
+                position=shard_id,
+                leave=True,
+                dynamic_ncols=True,
+            )
+            progress_bars.append(bar)
+
+        def _run_shard(shard_id: int, indices: list[int]) -> tuple[int, dict[int, str]]:
+            shard_updates: dict[int, str] = {}
+            for batch_num, offset in enumerate(range(0, len(indices), batch_size), start=1):
+                batch_indices = indices[offset : offset + batch_size]
+                row_updates = _process_batch(batch_indices)
+                shard_updates.update(row_updates)
+                progress_bars[shard_id].update(len(batch_indices))
+                if batch_log_every and batch_num % batch_log_every == 0:
+                    progress_bars[shard_id].write(
+                        f"  • Shard {shard_id + 1} batch {batch_num}: "
+                        f"generated {len(batch_indices)} row(s)."
+                    )
+                time.sleep(float(llm_cfg["sleep_sec"]))
+            return shard_id, shard_updates
+
+        with ThreadPoolExecutor(max_workers=len(shard_indices)) as executor:
+            futures = [
+                executor.submit(_run_shard, shard_id, indices)
+                for shard_id, indices in enumerate(shard_indices)
+            ]
+            for future in as_completed(futures):
+                _, shard_updates = future.result()
+                for i, text in shard_updates.items():
+                    generated.at[generated.index[i], text_column] = text
+
+        for bar in progress_bars:
+            bar.close()
+
+        return generated
+    if llm_server.provider in {"gemini", "openai"} and parallel_api_calls:
+        generated = _run_parallel_api()
+    else:
+        generated = _run_sequential()
 
     print("- Free-text generation complete.")
 
