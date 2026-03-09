@@ -39,5 +39,5 @@ batch_log_every: 0
 
 # Optional API-only concurrency mode (disabled by default).
 # When true, rows are split across N shards and each shard calls the API in parallel.
-parallel_api_calls: false
-api_parallel_shards: 5
+parallel_api_calls: True
+api_parallel_shards: 6
