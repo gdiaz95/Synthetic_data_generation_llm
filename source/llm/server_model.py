@@ -26,6 +26,21 @@ class ModelFitError(RuntimeError):
 class APIModelConnectionError(RuntimeError):
    """Raised when a remote API model cannot be reached or authenticated."""
 
+
+def _extract_status_code(exc):
+   """Best-effort status extraction for SDK errors (Gemini/OpenAI clients)."""
+   for attr in ("status_code", "code", "status"):
+       value = getattr(exc, attr, None)
+       if isinstance(value, int):
+           return value
+
+   response = getattr(exc, "response", None)
+   if response is not None:
+       value = getattr(response, "status_code", None)
+       if isinstance(value, int):
+           return value
+   return None
+
 def parse_args():
    parser = argparse.ArgumentParser(description="vLLM Single-GPU Server Script")
 
@@ -298,17 +313,34 @@ class SingleGPUServer:
                    "Couldn't connect to Gemini API. Check network access and API key."
                ) from exc
            except Exception as exc:
+               status_code = _extract_status_code(exc)
+               if status_code is not None:
+                   details = str(exc)
+                   if self._is_retryable_http_error(status_code) and attempt < max_attempts:
+                       wait_seconds = base_wait_seconds * attempt
+                       print(
+                           f"⚠️  Gemini request failed with HTTP {status_code}. "
+                           f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
+                       )
+                       time.sleep(wait_seconds)
+                       continue
+                   raise APIModelConnectionError(
+                       "Couldn't connect to Gemini API. Check model name and API key. "
+                       f"Details: {details}"
+                   ) from exc
+
                if attempt < max_attempts:
                    wait_seconds = base_wait_seconds * attempt
                    print(
                        "⚠️  Gemini request raised an unexpected error. "
-                       f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
+                       f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})... "
+                       f"{type(exc).__name__}: {exc}"
                    )
                    time.sleep(wait_seconds)
                    continue
                raise APIModelConnectionError(
                    "Couldn't connect to Gemini API. Check model name and API key. "
-                   f"Details: {exc}"
+                   f"Details: {type(exc).__name__}: {exc}"
                ) from exc
 
 
@@ -545,5 +577,4 @@ if __name__ == "__main__":
    finally:
        if server is not None and server.provider == "local":
            server.cleanup()
-
 
