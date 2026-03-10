@@ -1,4 +1,8 @@
 model: gemini-3.1-flash-lite-preview
+# Gemini Flash 3 model options (switch by uncommenting one):
+# model: gemini-3-flash-preview
+# model: gemini-3.1-flash-preview
+# model: gemini-3.1-flash-lite-preview
 provider: auto
 
 # model: Qwen/Qwen2.5-14B-Instruct
