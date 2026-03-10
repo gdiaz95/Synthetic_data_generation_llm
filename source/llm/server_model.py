@@ -258,13 +258,6 @@ class SingleGPUServer:
            )
 
 
-   def _is_gemini_flash_3(self):
-       model_name = self.model_name.lower()
-       if model_name.startswith("models/"):
-           model_name = model_name[len("models/") :]
-       return "gemini-3" in model_name and "flash" in model_name
-
-
    @staticmethod
    def _safe_read_http_error(exc):
        try:
@@ -351,10 +344,6 @@ class SingleGPUServer:
        "maxOutputTokens": config.get("max_tokens", 512),
        }
 
-       if self._is_gemini_flash_3():
-           generation_cfg["thinkingConfig"] = {"thinkingMode": "medium"}
-
-
        payload = {
            "contents": [{"parts": [{"text": prompt}]}],
            "generationConfig": generation_cfg,
@@ -408,10 +397,6 @@ class SingleGPUServer:
            "top_p": config.get("top_p", 0.95),
            "max_output_tokens": config.get("max_tokens", 512),
        }
-
-       if self._is_gemini_flash_3():
-           generation_config["thinking_config"] = {"thinking_mode": "medium"}
-
 
        def _request():
            return self._gemini_client.models.generate_content(
@@ -577,4 +562,3 @@ if __name__ == "__main__":
    finally:
        if server is not None and server.provider == "local":
            server.cleanup()
-
