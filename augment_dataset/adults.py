@@ -105,10 +105,10 @@ You are generating a realistic free-text field for census/employment-style recor
 
 For EACH input record, output ONE JSON object PER LINE (JSONL), with keys:
 - "id": integer (copy input id)
-- "daily_tasks": string (25–{MAX_WORDS} words)
+- "daily_tasks": string (25–{MAX_WORDS-50} words)
 
 Hard constraints:
-- MAX {MAX_WORDS} words (do not exceed).
+- MAX {MAX_WORDS-50} words (do not exceed).
 - Write in third person from an outside perspective (e.g., "They", "This worker", "The employee").
 - Do NOT write in first person (no "I", "my", "me").
 - Describe a short, realistic summary of routine daily tasks.
