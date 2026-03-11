@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import re
+from typing import Any
 import pandas as pd
 import yaml
 from dotenv import load_dotenv
@@ -20,6 +21,7 @@ from source.pipelines.run_tabular import run_tabular_generation
 
 
 DEFAULT_CONFIG_DIR = Path("configs")
+DEFAULT_METADATA_ROOT = Path(".metadata")
 
 
 def _read_yaml(path: Path) -> dict:
@@ -44,6 +46,17 @@ def parse_args() -> argparse.Namespace:
         "--feature-weights-json",
         type=Path,
         help="Optional JSON file mapping tabular feature names to distance weights.",
+    )
+    parser.add_argument(
+        "--dataset-name",
+        type=str,
+        help="Dataset identifier used to discover metadata at .metadata/{dataset_name}/metadata.json.",
+    )
+    parser.add_argument(
+        "--free-text-threshold",
+        type=float,
+        default=0.8,
+        help="Unique-ratio threshold used to flag likely free-text columns in interactive mode.",
     )
 
     parser.add_argument("--model", type=str, help="Override generation model")
@@ -101,6 +114,157 @@ def _load_feature_weights(path: Path | None) -> dict[str, float] | None:
     return parsed
 
 
+def _dataset_name_from_path(input_csv: Path) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", input_csv.stem).strip("-")
+    return sanitized or "dataset"
+
+
+def _metadata_path(dataset_name: str) -> Path:
+    return DEFAULT_METADATA_ROOT / dataset_name / "metadata.json"
+
+
+def _load_metadata(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Metadata file must be a JSON object: {path}")
+    return payload
+
+
+def _detect_free_text_candidates(df: pd.DataFrame, threshold: float) -> list[str]:
+    candidates: list[str] = []
+    for col in df.columns:
+        series = df[col]
+        if not pd.api.types.is_string_dtype(series) and not pd.api.types.is_object_dtype(series):
+            continue
+        non_null = series.dropna().astype(str)
+        if non_null.empty:
+            continue
+        unique_ratio = float(non_null.nunique(dropna=True)) / float(len(non_null))
+        avg_words = float(non_null.str.split().str.len().mean())
+        if unique_ratio >= threshold and avg_words >= 3.0:
+            candidates.append(col)
+    return candidates
+
+
+def _prompt_free_text_columns(df: pd.DataFrame, threshold: float) -> list[str]:
+    detected = _detect_free_text_candidates(df, threshold)
+    print("\nNo metadata was found; launching interactive metadata checks.")
+    print(f"Detected likely free-text columns with unique_ratio >= {threshold:.0%} and avg words >= 3:")
+    if detected:
+        print(f"- {', '.join(detected)}")
+    else:
+        print("- (none detected)")
+
+    print("Enter comma-separated free-text columns to use (press Enter to accept detected list).")
+    response = input("> ").strip()
+    selected = detected if not response else [item.strip() for item in response.split(",") if item.strip()]
+    invalid = [col for col in selected if col not in df.columns]
+    if invalid:
+        raise ValueError(f"Unknown columns provided during interactive metadata setup: {invalid}")
+    return selected
+
+
+def _prompt_feature_weights(df: pd.DataFrame, excluded_columns: set[str]) -> dict[str, float] | None:
+    structured_cols = [c for c in df.columns if c not in excluded_columns]
+    if not structured_cols:
+        return None
+
+    answer = input("Apply custom feature weights (different from 1.0)? [y/N]: ").strip().lower()
+    if answer not in {"y", "yes"}:
+        return None
+
+    default_raw = input("Default weight for all structured columns [1.0]: ").strip()
+    default_weight = 1.0 if not default_raw else float(default_raw)
+    if default_weight < 0:
+        raise ValueError("Default weight must be non-negative.")
+
+    weights = {col: default_weight for col in structured_cols}
+    print("Provide overrides in format column=value, separated by commas (example: age=2.0,income=0.5).")
+    overrides = input("Overrides (optional): ").strip()
+    if overrides:
+        for pair in [item.strip() for item in overrides.split(",") if item.strip()]:
+            if "=" not in pair:
+                raise ValueError(f"Invalid override '{pair}'. Expected format column=value.")
+            key, value = pair.split("=", 1)
+            key = key.strip()
+            if key not in weights:
+                raise ValueError(f"Column '{key}' is not a structured column and cannot be weighted.")
+            weight = float(value.strip())
+            if weight < 0:
+                raise ValueError(f"Weight for '{key}' must be non-negative.")
+            weights[key] = weight
+    return weights
+
+
+def _resolve_metadata(
+    df: pd.DataFrame,
+    *,
+    dataset_name: str,
+    configured_text_column: str,
+    threshold: float,
+    cli_feature_weights_path: Path | None,
+) -> tuple[str, dict[str, float] | None]:
+    metadata_file = _metadata_path(dataset_name)
+    metadata = _load_metadata(metadata_file)
+
+    if metadata is not None:
+        print(f"Using metadata from: {metadata_file}")
+        free_text_columns = metadata.get("free_text_columns") or []
+        if not isinstance(free_text_columns, list):
+            raise ValueError("'free_text_columns' in metadata.json must be a list.")
+        text_column = str(free_text_columns[0]) if free_text_columns else configured_text_column
+
+        metadata_weights = metadata.get("feature_weights")
+        feature_weights: dict[str, float] | None = None
+        if metadata_weights is not None:
+            if not isinstance(metadata_weights, dict):
+                raise ValueError("'feature_weights' in metadata.json must be an object.")
+            feature_weights = {str(k): float(v) for k, v in metadata_weights.items()}
+    else:
+        text_columns = [configured_text_column]
+        feature_weights = None
+        if sys.stdin.isatty():
+            entered_dataset = input(f"Dataset name for metadata storage [{dataset_name}]: ").strip()
+            if entered_dataset:
+                dataset_name = entered_dataset
+                metadata_file = _metadata_path(dataset_name)
+
+            text_columns = _prompt_free_text_columns(df, threshold)
+            if text_columns:
+                print(f"Confirmed free-text columns: {', '.join(text_columns)}")
+            else:
+                print("No free-text columns confirmed interactively; falling back to configured text_column.")
+                text_columns = [configured_text_column]
+
+            feature_weights = _prompt_feature_weights(df, set(text_columns))
+
+            metadata_payload: dict[str, Any] = {
+                "dataset_name": dataset_name,
+                "free_text_columns": text_columns,
+            }
+            if feature_weights is not None:
+                metadata_payload["feature_weights"] = feature_weights
+            metadata_file.parent.mkdir(parents=True, exist_ok=True)
+            metadata_file.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
+            print(f"Saved interactive metadata to: {metadata_file}")
+        else:
+            print("No metadata found and stdin is not interactive; using configured defaults.")
+
+        text_column = text_columns[0]
+
+    if text_column not in df.columns:
+        raise ValueError(f"Selected text column '{text_column}' does not exist in dataset.")
+
+    if cli_feature_weights_path is not None:
+        feature_weights = _load_feature_weights(cli_feature_weights_path)
+        print(f"Using CLI feature weights from: {cli_feature_weights_path}")
+
+    return text_column, feature_weights
+
+
 def main() -> None:
     load_dotenv()
     args = parse_args()
@@ -147,9 +311,16 @@ def main() -> None:
     df = pd.read_csv(input_csv)
     print(f"Loaded dataframe with shape: {df.shape}")
 
-    text_column = tabular_cfg.get("text_column", "job_description")
-    if text_column not in df.columns:
-        raise ValueError(f"Expected text column '{text_column}' in input CSV.")
+    configured_text_column = tabular_cfg.get("text_column", "job_description")
+    dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
+    text_column, feature_weights = _resolve_metadata(
+        df,
+        dataset_name=dataset_name,
+        configured_text_column=configured_text_column,
+        threshold=float(args.free_text_threshold),
+        cli_feature_weights_path=args.feature_weights_json,
+    )
+    print(f"- active text_column: {text_column}")
 
     total_rows = len(df)
     if bool(llm_cfg.get("parallel_api_calls", False)):
@@ -159,8 +330,6 @@ def main() -> None:
             raise ValueError(
                 f"Please check the parallel {parallel_parameter_name}; it is currently larger than the dataset size."
             )
-
-    feature_weights = _load_feature_weights(args.feature_weights_json)
 
     print("\n[1/3] Running tabular data generation...")
     tabular_result = run_tabular_generation(
