@@ -21,6 +21,7 @@ def knn_retrieval_step1(
     syn_z: pd.DataFrame,
     k: int,
     cols: list[str] | None = None,
+    feature_weights: dict[str, float] | None = None,
     chunk_size: int = 512,
 ) -> tuple[np.ndarray, np.ndarray]:
     """For each synthetic row, find indices of the k nearest real rows in Z-space."""
@@ -34,6 +35,21 @@ def knn_retrieval_step1(
 
     Xr = real_z[cols].to_numpy(dtype=np.float64, copy=False)
     Xs = syn_z[cols].to_numpy(dtype=np.float64, copy=False)
+
+    if feature_weights:
+        weights = np.array(
+            [float(feature_weights.get(col, 1.0)) for col in cols],
+            dtype=np.float64,
+        )
+    else:
+        weights = np.ones(len(cols), dtype=np.float64)
+
+    if np.any(weights < 0):
+        raise ValueError("Feature weights must be non-negative.")
+
+    scales = np.sqrt(weights)
+    Xr = Xr * scales
+    Xs = Xs * scales
 
     n = Xr.shape[0]
     m = Xs.shape[0]
@@ -72,6 +88,7 @@ def run_tabular_generation(
     real_df: pd.DataFrame,
     tabular_cfg: dict,
     text_column: str,
+    feature_weights: dict[str, float] | None = None,
 ) -> TabularGenerationResult:
     """Fit NPGC and generate synthetic tabular rows with neighbor indices."""
     print(f"- Preparing tabular features (excluding '{text_column}')...")
@@ -99,6 +116,7 @@ def run_tabular_generation(
         real_z,
         z_correlated,
         k=int(tabular_cfg["knn_k"]),
+        feature_weights=feature_weights,
     )
     print("- Tabular generation and KNN retrieval complete.")
 
