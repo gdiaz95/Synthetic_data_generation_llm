@@ -77,6 +77,7 @@ def build_prompt_from_structured_with_neighbors(
     neighbor_rows: list[dict[str, Any]] | None = None,
     max_neighbors: int = 3,
     neighbor_excerpt_words: int = 20,
+    target_words: int | None = None,
 ) -> str:
     clean = {
         key: value
@@ -102,8 +103,11 @@ def build_prompt_from_structured_with_neighbors(
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
 
+    calibrated_target_words = max(1, int(target_words if target_words is not None else max_words))
+
     return prompt_template.format(
         max_words=max_words,
+        target_words=calibrated_target_words,
         text_column=text_column,
         structured_fields=clean,
         neighbor_block=neighbor_block,
@@ -175,6 +179,16 @@ def generate_free_text_column(
                 row_copy[text_column] = sanitized
                 sanitized_neighbor_rows.append(row_copy)
 
+            neighbor_lengths = [
+                len(re.findall(r"\S+", str(row.get(text_column, "")).strip()))
+                for row in sanitized_neighbor_rows
+                if str(row.get(text_column, "")).strip()
+            ]
+            if neighbor_lengths:
+                avg_neighbor_words = int(round(sum(neighbor_lengths) / len(neighbor_lengths)))
+            else:
+                avg_neighbor_words = int(llm_cfg["max_words"])
+
             prompt = build_prompt_from_structured_with_neighbors(
                 fields=generated.iloc[i].to_dict(),
                 prompt_template=prompt_cfg["free_text_prompt"],
@@ -183,6 +197,7 @@ def generate_free_text_column(
                 neighbor_rows=sanitized_neighbor_rows,
                 max_neighbors=int(llm_cfg["k_neighbors"]),
                 neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
+                target_words=min(int(llm_cfg["max_words"]), max(1, avg_neighbor_words)),
             )
             prompts.append(prompt)
         return prompts

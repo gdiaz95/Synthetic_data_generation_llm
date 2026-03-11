@@ -3,6 +3,7 @@ free_text_prompt: |
   Write realistic {text_column} content (40–{max_words} words).
 
   Constraints:
+  - Target roughly {target_words} words to match the density of the neighbor examples.
   - Max {max_words} words.
   - No names, employer names, addresses, or specific company locations.
   - No salary numbers.

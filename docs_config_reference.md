@@ -116,10 +116,11 @@ Controls prompt template text and neighbor snippet formatting.
 - **Used by:** `build_prompt_from_structured_with_neighbors(...)` via `cap_words`.
 - **Current value:** `20`
 
-### `job_description_prompt`
+### `free_text_prompt`
 - **What it is:** Main template used to generate each synthetic `job_description`.
 - **Template placeholders:**
   - `{max_words}` from `llm_generation.yml:max_words`
+  - `{target_words}` dynamic average word count from retrieved neighbor examples
   - `{structured_fields}` from each synthetic row
   - `{neighbor_block}` built from nearest-neighbor text snippets
 - **Output contract:** Instructs model to return only a single prose job description with privacy/format constraints.
@@ -138,10 +139,16 @@ These are not in YAML, but they are required depending on provider.
 
 ---
 
+### `distance_feature_weights_json` (CLI: `--feature-weights-json`)
+- **What it is:** Optional JSON file mapping tabular latent-space feature names to non-negative weight values.
+- **Used by:** `knn_retrieval_step1(...)` weighted Euclidean distance retrieval.
+- **Default behavior:** If omitted, all feature weights are `1.0` (standard Euclidean distance).
+- **Formula:** `sqrt(sum(w_i * (x_i - y_i)^2))`.
+
 ## 5) CLI overrides (highest precedence)
 
 When running `source/pipelines/run_full.py`, these flags override YAML values:
-- `--input-csv`, `--output-csv`
+- `--input-csv`, `--output-csv`, `--feature-weights-json`
 - `--model`, `--provider`
 - `--gpu-memory-utilization`, `--max-model-len`
 
