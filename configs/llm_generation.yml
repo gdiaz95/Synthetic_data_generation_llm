@@ -1,7 +1,6 @@
 model: gemini-3.1-flash-lite-preview
 # Gemini Flash 3 model options (switch by uncommenting one):
 # model: gemini-3-flash-preview
-# model: gemini-3.1-flash-preview
 # model: gemini-3.1-flash-lite-preview
 provider: auto
 
@@ -43,5 +42,5 @@ batch_log_every: 0
 
 # Optional API-only concurrency mode (disabled by default).
 # When true, rows are split across N shards and each shard calls the API in parallel.
-parallel_api_calls: True
+parallel_api_calls: False
 api_parallel_shards: 6
