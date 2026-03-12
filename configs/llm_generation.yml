@@ -44,3 +44,6 @@ batch_log_every: 0
 # When true, rows are split across N shards and each shard calls the API in parallel.
 parallel_api_calls: False
 api_parallel_shards: 6
+
+# Optional: hash-embedding size for lightweight text-vector preparation.
+text_vector_hash_dim: 8
