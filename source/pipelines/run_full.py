@@ -123,6 +123,18 @@ def _metadata_path(dataset_name: str) -> Path:
     return DEFAULT_METADATA_ROOT / dataset_name / "metadata.json"
 
 
+def _resolve_json_metadata_path(dataset_name: str, configured_json_path: Any | None) -> Path:
+    if configured_json_path is None:
+        return _metadata_path(dataset_name)
+
+    configured = str(configured_json_path).strip()
+    if configured.lower() in {"", "none", "null"}:
+        return _metadata_path(dataset_name)
+
+    resolved = configured.format(dataset_name=dataset_name)
+    return Path(resolved)
+
+
 def _load_metadata(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -206,8 +218,11 @@ def _resolve_metadata(
     configured_text_column: str,
     threshold: float,
     cli_feature_weights_path: Path | None,
+    configured_json_path: Any | None,
 ) -> tuple[str, dict[str, float] | None]:
-    metadata_file = _metadata_path(dataset_name)
+    metadata_file = _resolve_json_metadata_path(dataset_name, configured_json_path)
+    configured_json_raw = "" if configured_json_path is None else str(configured_json_path).strip().lower()
+    allow_interactive_fallback = configured_json_raw in {"", "none", "null"}
     metadata = _load_metadata(metadata_file)
 
     if metadata is not None:
@@ -226,7 +241,8 @@ def _resolve_metadata(
     else:
         text_columns = [configured_text_column]
         feature_weights = None
-        if sys.stdin.isatty():
+
+        if allow_interactive_fallback and sys.stdin.isatty():
             entered_dataset = input(f"Dataset name for metadata storage [{dataset_name}]: ").strip()
             if entered_dataset:
                 dataset_name = entered_dataset
@@ -251,7 +267,7 @@ def _resolve_metadata(
             metadata_file.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
             print(f"Saved interactive metadata to: {metadata_file}")
         else:
-            print("No metadata found and stdin is not interactive; using configured defaults.")
+            print(f"Metadata JSON not found at {metadata_file}; using configured defaults.")
 
         text_column = text_columns[0]
 
@@ -319,6 +335,7 @@ def main() -> None:
         configured_text_column=configured_text_column,
         threshold=float(args.free_text_threshold),
         cli_feature_weights_path=args.feature_weights_json,
+        configured_json_path=tabular_cfg.get("json_path"),
     )
     print(f"- active text_column: {text_column}")
 
