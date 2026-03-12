@@ -17,7 +17,7 @@ if str(root_path) not in sys.path:
 
 from source.llm.server_model import SingleGPUServer
 from source.pipelines.run_free_text import generate_free_text_column
-from source.pipelines.run_tabular import run_tabular_generation
+from source.pipelines.run_tabular import knn_retrieval_with_text_blocks, run_tabular_generation
 from source.pipelines.text_vector_prep import prepare_text_vector_features
 
 
@@ -330,6 +330,13 @@ def main() -> None:
     print(f"- llm parallel_api_calls: {bool(llm_cfg.get('parallel_api_calls', False))}")
     print(f"- llm api_parallel_shards: {int(llm_cfg.get('api_parallel_shards', 5))}")
     print(f"- prompt neighbor_excerpt_words: {prompt_cfg['neighbor_excerpt_words']}")
+    distance_alpha = float(llm_cfg.get("distance_alpha", 1.0))
+    distance_beta_default = float(llm_cfg.get("distance_beta_default", 0.2))
+    distance_beta_by_column = llm_cfg.get("distance_beta_by_column", {})
+    if not isinstance(distance_beta_by_column, dict):
+        raise ValueError("llm.distance_beta_by_column must be a mapping of text_column -> beta weight.")
+    print(f"- distance alpha (tabular block): {distance_alpha}")
+    print(f"- distance beta default (text blocks): {distance_beta_default}")
 
     if not input_csv.exists():
         raise FileNotFoundError(f"Input file not found: {input_csv}")
@@ -383,15 +390,37 @@ def main() -> None:
     llm_server = SingleGPUServer(server_args)
     generated = tabular_result.synthetic_data.copy()
     text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
+    stage_nn_idx = tabular_result.nn_idx
     try:
         print("\n[2/3] Running LLM free-text generation...")
         for stage_idx, text_column in enumerate(text_columns, start=1):
             print(f"\n  -> Free-text stage {stage_idx}/{len(text_columns)} for column '{text_column}'")
+            if text_vector_blocks:
+                weighted_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] = []
+                for prev_col, block in text_vector_blocks.items():
+                    beta = float(distance_beta_by_column.get(prev_col, distance_beta_default))
+                    weighted_blocks.append((block["real"], block["synthetic"], beta))
+                stage_nn_idx, _ = knn_retrieval_with_text_blocks(
+                    tabular_result.real_z,
+                    tabular_result.z_correlated,
+                    k=int(tabular_cfg["knn_k"]),
+                    alpha=distance_alpha,
+                    text_blocks=weighted_blocks,
+                    feature_weights=feature_weights,
+                )
+                print(
+                    "     Updated KNN with blended distance: "
+                    f"alpha={distance_alpha}, text_blocks={len(weighted_blocks)}"
+                )
+            else:
+                stage_nn_idx = tabular_result.nn_idx
+                print("     Using tabular-only KNN for first text stage.")
+
             generated = generate_free_text_column(
                 llm_server=llm_server,
                 original_df=df,
                 synthetic_df=generated,
-                nn_idx=tabular_result.nn_idx,
+                nn_idx=stage_nn_idx,
                 llm_cfg=llm_cfg,
                 prompt_cfg=prompt_cfg,
                 text_column=text_column,
@@ -405,8 +434,8 @@ def main() -> None:
                 "synthetic": synthetic_text_vectors,
             }
             print(
-                "     Prepared text vectors for future distance integration: "
-                f"real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
+                "     Prepared text vectors for distance integration: "
+                f"column={text_column}, real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
             )
     finally:
         if llm_server.provider == "local":

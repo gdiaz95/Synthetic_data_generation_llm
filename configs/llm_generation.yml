@@ -47,3 +47,12 @@ api_parallel_shards: 6
 
 # Optional: hash-embedding size for lightweight text-vector preparation.
 text_vector_hash_dim: 8
+
+
+# Distance blending for multi-stage text generation.
+# d_j^2 = alpha * d_tab^2 + sum_{c<j} beta_c * ||z_c(s)-z_c(r)||^2
+# Each block is normalized by feature dimension before weighting.
+distance_alpha: 1.0
+distance_beta_default: 0.2
+# Optional per-column overrides, e.g. {job_summary: 0.3}
+distance_beta_by_column: {}
