@@ -171,6 +171,8 @@ def _prompt_free_text_columns(df: pd.DataFrame, threshold: float) -> list[str]:
         print("- (none detected)")
 
     print("Enter comma-separated free-text columns to use (press Enter to accept detected list).")
+    for col in df.columns:
+        print(f"  - {col}")
     response = input("> ").strip()
     print("Available columns:")
     for col in df.columns:
