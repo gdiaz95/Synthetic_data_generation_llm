@@ -87,12 +87,13 @@ def knn_retrieval_step1(
 def run_tabular_generation(
     real_df: pd.DataFrame,
     tabular_cfg: dict,
-    text_column: str,
+    text_columns: list[str],
     feature_weights: dict[str, float] | None = None,
 ) -> TabularGenerationResult:
     """Fit NPGC and generate synthetic tabular rows with neighbor indices."""
-    print(f"- Preparing tabular features (excluding '{text_column}')...")
-    tabular_features = real_df.drop(columns=[text_column])
+    excluded = [col for col in text_columns if col in real_df.columns]
+    print(f"- Preparing tabular features (excluding free-text columns: {excluded})...")
+    tabular_features = real_df.drop(columns=excluded)
     print(f"- Tabular feature matrix shape: {tabular_features.shape}")
 
     print("- Initializing NPGC synthesizer...")
