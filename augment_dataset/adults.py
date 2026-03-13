@@ -13,6 +13,7 @@ load_dotenv()
 
 MODEL = "gemini-3-flash-preview"
 MAX_WORDS = 80
+THIRD_COLUMN_MAX_WORDS = 10
 TEMPERATURE = float("0.9")
 TOP_P = float("0.95")
 TOP_K = int("20")
@@ -121,7 +122,33 @@ INPUT RECORDS (JSON):
 """.strip()
 
 
-def _generate_jsonl_batch(rows_payload, prompt_builder, output_key: str, max_retries: int = 6) -> dict:
+def build_work_snippet_batch_prompt(rows_payload) -> str:
+    return f"""
+You are generating a very short third text field called work_snippet for census/employment-style records.
+
+For EACH input record, output ONE JSON object PER LINE (JSONL), with keys:
+- "id": integer (copy input id)
+- "work_snippet": string (up to {THIRD_COLUMN_MAX_WORDS} words)
+
+Hard constraints:
+- Use no more than {THIRD_COLUMN_MAX_WORDS} words.
+- Keep language plain and simple.
+- Write one short work-focused summary from the provided context.
+- Do NOT include names, locations, or extra commentary.
+- Output ONLY JSON lines. No extra commentary.
+
+INPUT RECORDS (JSON):
+{json.dumps(rows_payload, ensure_ascii=False)}
+""".strip()
+
+
+def _generate_jsonl_batch(
+    rows_payload,
+    prompt_builder,
+    output_key: str,
+    max_retries: int = 6,
+    max_words: int = MAX_WORDS,
+) -> dict:
     prompt = prompt_builder(rows_payload)
 
     for attempt in range(max_retries):
@@ -146,7 +173,7 @@ def _generate_jsonl_batch(rows_payload, prompt_builder, output_key: str, max_ret
                 try:
                     obj = json.loads(line)
                     rid = int(obj["id"])
-                    content = _cap_words(str(obj[output_key]), MAX_WORDS)
+                    content = _cap_words(str(obj[output_key]), max_words)
                     out[rid] = content
                 except Exception:
                     continue
@@ -169,6 +196,16 @@ def generate_daily_tasks_for_batch(rows_payload, max_retries: int = 6) -> dict:
     return _generate_jsonl_batch(rows_payload, build_daily_tasks_batch_prompt, "daily_tasks", max_retries)
 
 
+def generate_work_snippet_for_batch(rows_payload, max_retries: int = 6) -> dict:
+    return _generate_jsonl_batch(
+        rows_payload,
+        build_work_snippet_batch_prompt,
+        "work_snippet",
+        max_retries,
+        THIRD_COLUMN_MAX_WORDS,
+    )
+
+
 def main():
     df, loaded_existing_job_desc_file = load_source_dataframe()
     df_small = df.head(df.shape[0]).copy()
@@ -179,6 +216,14 @@ def main():
     has_non_empty_job_desc = has_job_desc_col and df_small["job_description"].fillna("").astype(str).str.strip().ne("").any()
     needs_job_desc_generation = not has_non_empty_job_desc
 
+    has_daily_tasks_col = "daily_tasks" in df_small.columns
+    has_non_empty_daily_tasks = has_daily_tasks_col and df_small["daily_tasks"].fillna("").astype(str).str.strip().ne("").any()
+    needs_daily_tasks_generation = not has_non_empty_daily_tasks
+
+    has_work_snippet_col = "work_snippet" in df_small.columns
+    has_non_empty_work_snippet = has_work_snippet_col and df_small["work_snippet"].fillna("").astype(str).str.strip().ne("").any()
+    needs_work_snippet_generation = not has_non_empty_work_snippet
+
     job_desc = {}
     if has_non_empty_job_desc:
         print("✅ Existing non-empty 'job_description' detected. Reusing it and skipping regeneration.")
@@ -187,6 +232,27 @@ def main():
         print("ℹ️ 'job_description' missing/empty. Generating job_description first, then daily_tasks.")
 
     daily_tasks = {}
+    work_snippet = {}
+
+    if has_non_empty_daily_tasks:
+        print("✅ Existing non-empty 'daily_tasks' detected. Reusing it.")
+        daily_tasks = {int(i): str(v).strip() for i, v in df_small["daily_tasks"].fillna("").items()}
+    else:
+        print("ℹ️ 'daily_tasks' missing/empty. Generating it from context.")
+
+    if has_non_empty_work_snippet:
+        print("✅ Existing non-empty 'work_snippet' detected. Reusing it and skipping regeneration.")
+        work_snippet = {int(i): str(v).strip() for i, v in df_small["work_snippet"].fillna("").items()}
+    else:
+        print("ℹ️ 'work_snippet' missing/empty. Generating a short third field.")
+
+    if not has_work_snippet_col and "daily_tasks_short" in df_small.columns:
+        print("ℹ️ Found legacy column 'daily_tasks_short'. Using it as fallback source for 'work_snippet'.")
+        legacy_values = df_small["daily_tasks_short"].fillna("").astype(str).str.strip()
+        has_non_empty_work_snippet = legacy_values.ne("").any()
+        needs_work_snippet_generation = not has_non_empty_work_snippet
+        if has_non_empty_work_snippet:
+            work_snippet = {int(i): v for i, v in legacy_values.items()}
 
     indices = list(df_small.index)
     batches = [indices[i:i + BATCH_SIZE] for i in range(0, len(indices), BATCH_SIZE)]
@@ -215,17 +281,38 @@ def main():
                 }
             )
 
-        print("[stage] Generating daily_tasks batch...")
-        parsed_daily_tasks = generate_daily_tasks_for_batch(rows_with_job_context)
-        for idx in batch_ids:
-            rid = int(idx)
-            daily_tasks[rid] = parsed_daily_tasks.get(rid, "")
+        if needs_daily_tasks_generation:
+            print("[stage] Generating daily_tasks batch...")
+            parsed_daily_tasks = generate_daily_tasks_for_batch(rows_with_job_context)
+            for idx in batch_ids:
+                rid = int(idx)
+                daily_tasks[rid] = parsed_daily_tasks.get(rid, "")
+
+        if needs_work_snippet_generation:
+            rows_with_daily_context = []
+            for item in rows_with_job_context:
+                rid = int(item["id"])
+                rows_with_daily_context.append(
+                    {
+                        "id": rid,
+                        "fields": item["fields"],
+                        "job_description": item["job_description"],
+                        "daily_tasks": daily_tasks.get(rid, ""),
+                    }
+                )
+
+            print("[stage] Generating work_snippet batch...")
+            parsed_work_snippet = generate_work_snippet_for_batch(rows_with_daily_context)
+            for idx in batch_ids:
+                rid = int(idx)
+                work_snippet[rid] = parsed_work_snippet.get(rid, "")
 
         if SLEEP_BETWEEN_CALLS_SEC > 0:
             time.sleep(SLEEP_BETWEEN_CALLS_SEC)
 
     df_small["job_description"] = [job_desc.get(int(i), "") for i in df_small.index]
     df_small["daily_tasks"] = [daily_tasks.get(int(i), "") for i in df_small.index]
+    df_small["work_snippet"] = [work_snippet.get(int(i), "") for i in df_small.index]
 
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
     df_small.to_csv(OUTPUT_CSV, index=False)
