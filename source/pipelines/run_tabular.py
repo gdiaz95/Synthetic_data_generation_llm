@@ -84,15 +84,110 @@ def knn_retrieval_step1(
     return nn_idx, nn_dist
 
 
+def knn_retrieval_with_text_blocks(
+    real_z: pd.DataFrame,
+    syn_z: pd.DataFrame,
+    k: int,
+    *,
+    alpha: float = 1.0,
+    text_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] | None = None,
+    cols: list[str] | None = None,
+    feature_weights: dict[str, float] | None = None,
+    chunk_size: int = 512,
+) -> tuple[np.ndarray, np.ndarray]:
+    """KNN retrieval using weighted tabular and optional text-vector distance blocks.
+
+    Distance uses the form:
+        d_j^2 = alpha * d_tab^2 + sum_c beta_c * ||z_c(s) - z_c(r)||^2
+
+    Each block is normalized by its feature dimension to avoid scale dominance.
+    """
+    if alpha < 0:
+        raise ValueError("alpha must be non-negative.")
+
+    if cols is None:
+        cols = list(real_z.columns.intersection(syn_z.columns))
+        if not cols:
+            raise ValueError("No overlapping columns between real_z and syn_z.")
+
+    Xr_tab = real_z[cols].to_numpy(dtype=np.float64, copy=False)
+    Xs_tab = syn_z[cols].to_numpy(dtype=np.float64, copy=False)
+
+    if feature_weights:
+        weights = np.array([float(feature_weights.get(col, 1.0)) for col in cols], dtype=np.float64)
+    else:
+        weights = np.ones(len(cols), dtype=np.float64)
+    if np.any(weights < 0):
+        raise ValueError("Feature weights must be non-negative.")
+
+    tab_scales = np.sqrt(weights)
+    Xr_tab = Xr_tab * tab_scales
+    Xs_tab = Xs_tab * tab_scales
+
+    n = Xr_tab.shape[0]
+    m = Xs_tab.shape[0]
+    if k <= 0:
+        raise ValueError("k must be >= 1.")
+    if k > n:
+        raise ValueError(f"k={k} cannot exceed number of real rows n={n}.")
+
+    tab_norm = max(1, Xr_tab.shape[1])
+    r_tab_norm2 = np.sum(Xr_tab * Xr_tab, axis=1)
+
+    prepared_text: list[tuple[np.ndarray, np.ndarray, np.ndarray, float, int]] = []
+    for real_block, syn_block, beta in text_blocks or []:
+        if beta < 0:
+            raise ValueError("All beta weights must be non-negative.")
+        block_cols = list(real_block.columns.intersection(syn_block.columns))
+        if not block_cols:
+            continue
+        Xr = real_block[block_cols].to_numpy(dtype=np.float64, copy=False)
+        Xs = syn_block[block_cols].to_numpy(dtype=np.float64, copy=False)
+        if Xr.shape[0] != n or Xs.shape[0] != m:
+            raise ValueError("Text block row counts must match tabular real/synthetic row counts.")
+        r_norm2 = np.sum(Xr * Xr, axis=1)
+        block_norm = max(1, Xr.shape[1])
+        prepared_text.append((Xr, Xs, r_norm2, float(beta), block_norm))
+
+    nn_idx = np.empty((m, k), dtype=np.int64)
+    nn_dist = np.empty((m, k), dtype=np.float64)
+
+    for start in range(0, m, chunk_size):
+        end = min(start + chunk_size, m)
+        S_tab = Xs_tab[start:end]
+        s_tab_norm2 = np.sum(S_tab * S_tab, axis=1)
+        dist2 = alpha * (s_tab_norm2[:, None] + r_tab_norm2[None, :] - 2.0 * (S_tab @ Xr_tab.T)) / tab_norm
+
+        for Xr, Xs, r_norm2, beta, block_norm in prepared_text:
+            S = Xs[start:end]
+            s_norm2 = np.sum(S * S, axis=1)
+            dist2 += beta * (s_norm2[:, None] + r_norm2[None, :] - 2.0 * (S @ Xr.T)) / block_norm
+
+        np.maximum(dist2, 0.0, out=dist2)
+
+        part = np.argpartition(dist2, kth=k - 1, axis=1)[:, :k]
+        row_ids = np.arange(end - start)[:, None]
+        part_dist2 = dist2[row_ids, part]
+        order = np.argsort(part_dist2, axis=1)
+        knn = part[row_ids, order]
+        knn_dist = np.sqrt(part_dist2[row_ids, order])
+
+        nn_idx[start:end] = knn
+        nn_dist[start:end] = knn_dist
+
+    return nn_idx, nn_dist
+
+
 def run_tabular_generation(
     real_df: pd.DataFrame,
     tabular_cfg: dict,
-    text_column: str,
+    text_columns: list[str],
     feature_weights: dict[str, float] | None = None,
 ) -> TabularGenerationResult:
     """Fit NPGC and generate synthetic tabular rows with neighbor indices."""
-    print(f"- Preparing tabular features (excluding '{text_column}')...")
-    tabular_features = real_df.drop(columns=[text_column])
+    excluded = [col for col in text_columns if col in real_df.columns]
+    print(f"- Preparing tabular features (excluding free-text columns: {excluded})...")
+    tabular_features = real_df.drop(columns=excluded)
     print(f"- Tabular feature matrix shape: {tabular_features.shape}")
 
     print("- Initializing NPGC synthesizer...")

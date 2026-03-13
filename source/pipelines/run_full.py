@@ -17,7 +17,8 @@ if str(root_path) not in sys.path:
 
 from source.llm.server_model import SingleGPUServer
 from source.pipelines.run_free_text import generate_free_text_column
-from source.pipelines.run_tabular import run_tabular_generation
+from source.pipelines.run_tabular import knn_retrieval_with_text_blocks, run_tabular_generation
+from source.pipelines.text_vector_prep import prepare_text_vector_features
 
 
 DEFAULT_CONFIG_DIR = Path("configs")
@@ -34,7 +35,7 @@ def _read_yaml(path: Path) -> dict:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate synthetic tabular dataset with an LLM-generated free-text column.",
+        description="Generate synthetic tabular dataset with LLM-generated free-text columns.",
     )
     parser.add_argument("--tabular-config", type=Path, default=DEFAULT_CONFIG_DIR / "tabular.yml")
     parser.add_argument("--llm-config", type=Path, default=DEFAULT_CONFIG_DIR / "llm_generation.yml")
@@ -224,7 +225,7 @@ def _resolve_metadata(
     threshold: float,
     cli_feature_weights_path: Path | None,
     configured_json_path: Any | None,
-) -> tuple[str, dict[str, float] | None]:
+) -> tuple[list[str], dict[str, float] | None]:
     metadata_file = _resolve_json_metadata_path(dataset_name, configured_json_path)
     configured_json_raw = "" if configured_json_path is None else str(configured_json_path).strip().lower()
     allow_interactive_fallback = configured_json_raw in {"", "none", "null"}
@@ -235,7 +236,7 @@ def _resolve_metadata(
         free_text_columns = metadata.get("free_text_columns") or []
         if not isinstance(free_text_columns, list):
             raise ValueError("'free_text_columns' in metadata.json must be a list.")
-        text_column = str(free_text_columns[0]) if free_text_columns else configured_text_column
+        text_columns = [str(col) for col in free_text_columns] if free_text_columns else [configured_text_column]
 
         metadata_weights = metadata.get("feature_weights")
         feature_weights: dict[str, float] | None = None
@@ -274,16 +275,24 @@ def _resolve_metadata(
         else:
             print(f"Metadata JSON not found at {metadata_file}; using configured defaults.")
 
-        text_column = text_columns[0]
+    text_columns = [col for col in text_columns if col]
+    if not text_columns:
+        text_columns = [configured_text_column]
 
-    if text_column not in df.columns:
-        raise ValueError(f"Selected text column '{text_column}' does not exist in dataset.")
+    unique_text_columns: list[str] = []
+    for col in text_columns:
+        if col not in unique_text_columns:
+            unique_text_columns.append(col)
+
+    missing_columns = [col for col in unique_text_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Selected text columns do not exist in dataset: {missing_columns}")
 
     if cli_feature_weights_path is not None:
         feature_weights = _load_feature_weights(cli_feature_weights_path)
         print(f"Using CLI feature weights from: {cli_feature_weights_path}")
 
-    return text_column, feature_weights
+    return unique_text_columns, feature_weights
 
 
 def main() -> None:
@@ -324,6 +333,13 @@ def main() -> None:
     print(f"- llm parallel_api_calls: {bool(llm_cfg.get('parallel_api_calls', False))}")
     print(f"- llm api_parallel_shards: {int(llm_cfg.get('api_parallel_shards', 5))}")
     print(f"- prompt neighbor_excerpt_words: {prompt_cfg['neighbor_excerpt_words']}")
+    distance_alpha = float(llm_cfg.get("distance_alpha", 1.0))
+    distance_beta_default = float(llm_cfg.get("distance_beta_default", 0.2))
+    distance_beta_by_column = llm_cfg.get("distance_beta_by_column", {})
+    if not isinstance(distance_beta_by_column, dict):
+        raise ValueError("llm.distance_beta_by_column must be a mapping of text_column -> beta weight.")
+    print(f"- distance alpha (tabular block): {distance_alpha}")
+    print(f"- distance beta default (text blocks): {distance_beta_default}")
 
     if not input_csv.exists():
         raise FileNotFoundError(f"Input file not found: {input_csv}")
@@ -334,7 +350,7 @@ def main() -> None:
 
     configured_text_column = tabular_cfg.get("text_column", "job_description")
     dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
-    text_column, feature_weights = _resolve_metadata(
+    text_columns, feature_weights = _resolve_metadata(
         df,
         dataset_name=dataset_name,
         configured_text_column=configured_text_column,
@@ -342,7 +358,7 @@ def main() -> None:
         cli_feature_weights_path=args.feature_weights_json,
         configured_json_path=tabular_cfg.get("json_path"),
     )
-    print(f"- active text_column: {text_column}")
+    print(f"- active text_columns: {text_columns}")
 
     total_rows = len(df)
     if bool(llm_cfg.get("parallel_api_calls", False)):
@@ -357,7 +373,7 @@ def main() -> None:
     tabular_result = run_tabular_generation(
         df,
         tabular_cfg,
-        text_column=text_column,
+        text_columns=text_columns,
         feature_weights=feature_weights,
     )
     print(
@@ -375,17 +391,55 @@ def main() -> None:
     )
 
     llm_server = SingleGPUServer(server_args)
+    generated = tabular_result.synthetic_data.copy()
+    text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
+    stage_nn_idx = tabular_result.nn_idx
     try:
         print("\n[2/3] Running LLM free-text generation...")
-        generated = generate_free_text_column(
-            llm_server=llm_server,
-            original_df=df,
-            synthetic_df=tabular_result.synthetic_data,
-            nn_idx=tabular_result.nn_idx,
-            llm_cfg=llm_cfg,
-            prompt_cfg=prompt_cfg,
-            text_column=text_column,
-        )
+        for stage_idx, text_column in enumerate(text_columns, start=1):
+            print(f"\n  -> Free-text stage {stage_idx}/{len(text_columns)} for column '{text_column}'")
+            if text_vector_blocks:
+                weighted_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] = []
+                for prev_col, block in text_vector_blocks.items():
+                    beta = float(distance_beta_by_column.get(prev_col, distance_beta_default))
+                    weighted_blocks.append((block["real"], block["synthetic"], beta))
+                stage_nn_idx, _ = knn_retrieval_with_text_blocks(
+                    tabular_result.real_z,
+                    tabular_result.z_correlated,
+                    k=int(tabular_cfg["knn_k"]),
+                    alpha=distance_alpha,
+                    text_blocks=weighted_blocks,
+                    feature_weights=feature_weights,
+                )
+                print(
+                    "     Updated KNN with blended distance: "
+                    f"alpha={distance_alpha}, text_blocks={len(weighted_blocks)}"
+                )
+            else:
+                stage_nn_idx = tabular_result.nn_idx
+                print("     Using tabular-only KNN for first text stage.")
+
+            generated = generate_free_text_column(
+                llm_server=llm_server,
+                original_df=df,
+                synthetic_df=generated,
+                nn_idx=stage_nn_idx,
+                llm_cfg=llm_cfg,
+                prompt_cfg=prompt_cfg,
+                text_column=text_column,
+            )
+
+            hash_dim = int(llm_cfg.get("text_vector_hash_dim", 8))
+            real_text_vectors = prepare_text_vector_features(df[text_column], hash_dim=hash_dim)
+            synthetic_text_vectors = prepare_text_vector_features(generated[text_column], hash_dim=hash_dim)
+            text_vector_blocks[text_column] = {
+                "real": real_text_vectors,
+                "synthetic": synthetic_text_vectors,
+            }
+            print(
+                "     Prepared text vectors for distance integration: "
+                f"column={text_column}, real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
+            )
     finally:
         if llm_server.provider == "local":
             llm_server.cleanup()

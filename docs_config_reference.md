@@ -105,6 +105,12 @@ Controls **free-text generation** and model backend behavior.
 - **Effect:** Helps reduce API throttling/rate-limit bursts.
 - **Current value:** `0.1`
 
+### `text_vector_hash_dim`
+- **What it is:** Hash-embedding width used for lightweight text-vector preparation after each generated free-text column.
+- **Used by:** `prepare_text_vector_features(...)` in `run_full.py`.
+- **Effect:** Higher values keep more token-bucket detail for future distance integration; lower values are faster and smaller.
+- **Current value:** `8`
+
 ---
 
 ## 3) `configs/prompts.yml`
