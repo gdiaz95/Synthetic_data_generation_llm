@@ -1,5 +1,5 @@
 # Identifiers used for report naming and path templating.
-dataset_name: adults_small_three
+dataset_name: adult_with_three
 model: gemini-3.1-flash-lite-preview
 
 # Real/original dataset path.
@@ -12,7 +12,11 @@ synthetic_data_path: data/processed/adults_synthetic_three_gemini-3.1-flash-lite
 report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
 
 # Free-text columns to exclude from metrics for now.
+# If .metadata/{dataset_name}/metadata.json exists, it overrides this list.
 free_text_columns: []
+
+# Optional metadata path template. Defaults to .metadata/{dataset_name}/metadata.json
+# metadata_json_path: .metadata/{dataset_name}/metadata.json
 
 # Holdout split parameters for real data.
 holdout_fraction: 0.2
