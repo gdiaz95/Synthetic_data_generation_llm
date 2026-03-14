@@ -4,6 +4,11 @@ import argparse
 import json
 import re
 from pathlib import Path
+import sys
+
+root_path = Path(__file__).resolve().parents[2]
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
 
 import pandas as pd
 import yaml
@@ -36,8 +41,6 @@ def parse_args() -> argparse.Namespace:
         description="Run structured-column QA metrics using real and synthetic datasets."
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--dataset-name", type=str, required=True)
-    parser.add_argument("--model", type=str, required=True)
     return parser.parse_args()
 
 
@@ -45,11 +48,22 @@ def main() -> None:
     args = parse_args()
     cfg = _read_yaml(args.config)
 
+    dataset_name = cfg.get("dataset_name")
+    model = cfg.get("model")
     real_template = cfg.get("real_data_path")
     synthetic_template = cfg.get("synthetic_data_path")
     output_template = cfg.get("report_output_path")
 
-    if not isinstance(real_template, str) or not isinstance(synthetic_template, str) or not isinstance(output_template, str):
+    if not isinstance(dataset_name, str) or not dataset_name.strip():
+        raise ValueError("metrics.yml must include a non-empty string key: dataset_name")
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError("metrics.yml must include a non-empty string key: model")
+
+    if (
+        not isinstance(real_template, str)
+        or not isinstance(synthetic_template, str)
+        or not isinstance(output_template, str)
+    ):
         raise ValueError(
             "metrics.yml must include string keys: real_data_path, synthetic_data_path, and report_output_path."
         )
@@ -61,9 +75,9 @@ def main() -> None:
     holdout_fraction = float(cfg.get("holdout_fraction", 0.2))
     random_seed = int(cfg.get("random_state", 42))
 
-    real_path = _resolve_path(real_template, dataset_name=args.dataset_name, model=args.model)
-    synthetic_path = _resolve_path(synthetic_template, dataset_name=args.dataset_name, model=args.model)
-    output_path = _resolve_path(output_template, dataset_name=args.dataset_name, model=args.model)
+    real_path = _resolve_path(real_template, dataset_name=dataset_name, model=model)
+    synthetic_path = _resolve_path(synthetic_template, dataset_name=dataset_name, model=model)
+    output_path = _resolve_path(output_template, dataset_name=dataset_name, model=model)
 
     if not real_path.exists():
         raise FileNotFoundError(f"Real data not found at: {real_path}")
@@ -91,8 +105,8 @@ def main() -> None:
     )
 
     payload = {
-        "dataset_name": args.dataset_name,
-        "model": args.model,
+        "dataset_name": dataset_name,
+        "model": model,
         "real_data_path": str(real_path),
         "synthetic_data_path": str(synthetic_path),
         "structured_columns": structured_columns,

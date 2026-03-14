@@ -26,6 +26,38 @@ def _safe_float(value: Any) -> float:
         return float("nan")
 
 
+def _looks_like_metrics_object(obj: Any) -> bool:
+    return (
+        obj is not None
+        and hasattr(obj, "accuracy")
+        and hasattr(obj, "similarity")
+        and hasattr(obj, "distances")
+    )
+
+
+def _extract_metrics(report_result: Any) -> Any:
+    """Handle return-shape differences across mostlyai qa.report versions."""
+    if _looks_like_metrics_object(report_result):
+        return report_result
+
+    if isinstance(report_result, tuple):
+        for item in report_result:
+            if _looks_like_metrics_object(item):
+                return item
+            nested = getattr(item, "metrics", None)
+            if _looks_like_metrics_object(nested):
+                return nested
+
+    nested = getattr(report_result, "metrics", None)
+    if _looks_like_metrics_object(nested):
+        return nested
+
+    raise ValueError(
+        "Could not extract metrics object from mostlyai.qa.report output. "
+        f"Received type={type(report_result)}."
+    )
+
+
 def _to_summary(metrics: Any) -> QAMetricsSummary:
     """Convert mostlyai qa metrics object into a lightweight serializable dataclass."""
     return QAMetricsSummary(
@@ -75,11 +107,12 @@ def evaluate_structured_qa_metrics(
     synthetic_eval = synthetic_df[non_free_text_columns]
     holdout_eval = holdout_df[non_free_text_columns]
 
-    _, metrics = qa.report(
+    report_result = qa.report(
         syn_tgt_data=synthetic_eval,
         trn_tgt_data=train_eval,
         hol_tgt_data=holdout_eval,
     )
+    metrics = _extract_metrics(report_result)
 
     report_file = Path("model-report.html")
     if report_file.exists():

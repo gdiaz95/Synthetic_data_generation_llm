@@ -1,11 +1,12 @@
-# Path templates accept: {dataset_name} and {model}
-# model will be sanitized to a filesystem-safe suffix.
+# Identifiers used for report naming and path templating.
+dataset_name: adults_small_three
+model: gemini-3.1-flash-lite-preview
 
 # Real/original dataset path.
-real_data_path: data/raw/{dataset_name}.csv
+real_data_path: data/raw/adult_with_three.csv
 
-# Synthetic dataset path (example naming includes model suffix).
-synthetic_data_path: data/processed/{dataset_name}_{model}.csv
+# Synthetic dataset path.
+synthetic_data_path: data/processed/adults_synthetic_three_gemini-3.1-flash-lite-preview.csv
 
 # Output report path for structured-column metrics.
 report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
