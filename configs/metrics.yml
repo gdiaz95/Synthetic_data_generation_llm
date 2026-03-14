@@ -1,0 +1,18 @@
+# Path templates accept: {dataset_name} and {model}
+# model will be sanitized to a filesystem-safe suffix.
+
+# Real/original dataset path.
+real_data_path: data/raw/{dataset_name}.csv
+
+# Synthetic dataset path (example naming includes model suffix).
+synthetic_data_path: data/processed/{dataset_name}_{model}.csv
+
+# Output report path for structured-column metrics.
+report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
+
+# Free-text columns to exclude from metrics for now.
+free_text_columns: []
+
+# Holdout split parameters for real data.
+holdout_fraction: 0.2
+random_state: 42
