@@ -16,7 +16,7 @@ report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
 free_text_columns: []
 
 # Optional metadata path template. Defaults to .metadata/{dataset_name}/metadata.json
-# metadata_json_path: .metadata/{dataset_name}/metadata.json
+metadata_json_path: .metadata/{dataset_name}/metadata.json
 
 # Holdout split parameters for real data.
 holdout_fraction: 0.2
