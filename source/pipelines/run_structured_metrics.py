@@ -207,24 +207,21 @@ def main() -> None:
     free_text_distribution: dict[str, Any] | None = None
     if text_columns:
         free_text_distribution = {}
-        with tqdm(total=len(text_columns), desc="Free-text metric columns", unit="column", dynamic_ncols=True) as column_bar:
-            for column_name in text_columns:
-                print(f"[free-text] Evaluating column: {column_name}")
-                try:
-                    free_text_distribution[column_name] = evaluate_first_free_text_distribution(
-                        real_df=real_train,
-                        synthetic_df=synthetic_df,
-                        real_holdout_df=real_holdout,
-                        free_text_columns=[column_name],
-                        embedding_dim=text_embedding_dim,
-                        max_features=text_max_features,
-                        mmd_batch_size=text_mmd_batch_size,
-                    )
-                except Exception as exc:  # pragma: no cover - dataset/config dependent
-                    free_text_distribution[column_name] = {"error": str(exc)}
-                    print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
-                finally:
-                    column_bar.update(1)
+        for column_name in tqdm(text_columns, desc="Free-text metric columns", unit="column", dynamic_ncols=True):
+            print(f"[free-text] Evaluating column: {column_name}")
+            try:
+                free_text_distribution[column_name] = evaluate_first_free_text_distribution(
+                    real_df=real_train,
+                    synthetic_df=synthetic_df,
+                    real_holdout_df=real_holdout,
+                    free_text_columns=[column_name],
+                    embedding_dim=text_embedding_dim,
+                    max_features=text_max_features,
+                    mmd_batch_size=text_mmd_batch_size,
+                )
+            except Exception as exc:  # pragma: no cover - dataset/config dependent
+                free_text_distribution[column_name] = {"error": str(exc)}
+                print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
 
 
 
