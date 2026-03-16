@@ -21,3 +21,10 @@ metadata_json_path: .metadata/{dataset_name}/metadata.json
 # Holdout split parameters for real data.
 holdout_fraction: 0.2
 random_state: 42
+
+# Free-text distribution metric settings (first free-text column only).
+# FID/FBD is computed whole-to-whole over global mean/covariance in one embedding space.
+# Calibration is reported against real-train vs real-holdout in the same embedding run.
+# Large dimensions are supported; runtime mostly depends on the embedding step.
+text_embedding_dim: 768
+text_max_features: 200000

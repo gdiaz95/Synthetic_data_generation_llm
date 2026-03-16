@@ -16,6 +16,7 @@ import yaml
 from sklearn.model_selection import train_test_split
 
 from source.metrics.structured_metrics import evaluate_structured_qa_metrics
+from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
 
 
 DEFAULT_CONFIG = Path("configs/metrics.yml")
@@ -101,6 +102,8 @@ def main() -> None:
 
     holdout_fraction = float(cfg.get("holdout_fraction", 0.2))
     random_seed = int(cfg.get("random_state", 42))
+    text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
+    text_max_features = int(cfg.get("text_max_features", 200_000))
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -175,6 +178,21 @@ def main() -> None:
         non_free_text_columns=structured_columns,
     )
 
+    free_text_distribution: dict[str, Any] | None = None
+    if text_columns:
+        try:
+            free_text_distribution = evaluate_first_free_text_distribution(
+                real_df=real_train,
+                synthetic_df=synthetic_df,
+                real_holdout_df=real_holdout,
+                free_text_columns=text_columns,
+                embedding_dim=text_embedding_dim,
+                max_features=text_max_features,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            free_text_distribution = {"error": str(exc)}
+            print(f"Warning: unable to compute free-text distribution metrics: {exc}")
+
     quality_report_data: dict[str, Any]
     try:
         from sdv.evaluation.single_table import evaluate_quality
@@ -203,7 +221,9 @@ def main() -> None:
         "real_data_path": str(real_path),
         "synthetic_data_path": str(synthetic_path),
         "structured_columns": structured_columns,
+        "free_text_columns": text_columns,
         "metrics_qa": metrics,
+        "free_text_distribution": free_text_distribution,
         "quality_report": quality_report_data,
     }
 
