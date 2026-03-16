@@ -61,6 +61,66 @@ def _rbf_mmd_biased(x: np.ndarray, y: np.ndarray, gamma: float | None = None) ->
     return float(kxx.mean() + kyy.mean() - 2.0 * kxy.mean())
 
 
+def _mean_rbf_kernel_blockwise(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    gamma: float,
+    batch_size: int,
+) -> float:
+    """Compute mean RBF kernel value in blocks to avoid O(n*m*d) allocation."""
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive.")
+
+    total = 0.0
+    count = 0
+    x_norm = np.sum(x * x, axis=1)
+    y_norm = np.sum(y * y, axis=1)
+
+    for i in range(0, x.shape[0], batch_size):
+        xb = x[i : i + batch_size]
+        xb_norm = x_norm[i : i + batch_size]
+        for j in range(0, y.shape[0], batch_size):
+            yb = y[j : j + batch_size]
+            yb_norm = y_norm[j : j + batch_size]
+
+            # Squared euclidean distances via ||a||^2 + ||b||^2 - 2a·b
+            dist2 = xb_norm[:, None] + yb_norm[None, :] - 2.0 * (xb @ yb.T)
+            np.maximum(dist2, 0.0, out=dist2)
+            kernel = np.exp(-gamma * dist2)
+            total += float(kernel.sum())
+            count += int(kernel.size)
+
+    if count == 0:
+        return float("nan")
+    return float(total / count)
+
+
+def _rbf_mmd_biased_batched(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    gamma: float | None = None,
+    batch_size: int = 2048,
+) -> float:
+    if x.size == 0 or y.size == 0:
+        return float("nan")
+
+    if gamma is None:
+        # Median heuristic on a small shared subset for stable runtime.
+        sample_x = x[: min(500, len(x))]
+        sample_y = y[: min(500, len(y))]
+        pair = np.vstack([sample_x, sample_y])
+        dist2 = np.sum((pair[:, None, :] - pair[None, :, :]) ** 2, axis=2)
+        median = float(np.median(dist2[dist2 > 0])) if np.any(dist2 > 0) else 1.0
+        gamma = 1.0 / max(median, 1e-9)
+
+    mean_kxx = _mean_rbf_kernel_blockwise(x, x, gamma=gamma, batch_size=batch_size)
+    mean_kyy = _mean_rbf_kernel_blockwise(y, y, gamma=gamma, batch_size=batch_size)
+    mean_kxy = _mean_rbf_kernel_blockwise(x, y, gamma=gamma, batch_size=batch_size)
+    return float(mean_kxx + mean_kyy - 2.0 * mean_kxy)
+
+
 def _frechet_distance(
     mu_real: np.ndarray,
     cov_real: np.ndarray,
@@ -116,13 +176,13 @@ def _embed_tfidf_svd_many(
     return split_embeddings, latent_dim
 
 
-def _pair_metrics(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+def _pair_metrics(x: np.ndarray, y: np.ndarray, *, mmd_batch_size: int = 2048) -> tuple[float, float]:
     mu_x = x.mean(axis=0)
     mu_y = y.mean(axis=0)
     cov_x = np.cov(x, rowvar=False)
     cov_y = np.cov(y, rowvar=False)
     frechet = _frechet_distance(mu_x, cov_x, mu_y, cov_y)
-    mmd = _rbf_mmd_biased(x, y)
+    mmd = _rbf_mmd_biased_batched(x, y, batch_size=mmd_batch_size)
     return float(frechet), float(mmd)
 
 
@@ -140,6 +200,7 @@ def evaluate_first_free_text_distribution(
     real_holdout_df: pd.DataFrame | None = None,
     embedding_dim: int = 768,
     max_features: int = 200_000,
+    mmd_batch_size: int = 2048,
 ) -> dict[str, float | int | str]:
     """Evaluate distribution matching for the first configured free-text column.
 
@@ -177,8 +238,16 @@ def evaluate_first_free_text_distribution(
     )
     real_train_emb, real_holdout_emb, syn_emb = embedded_sets
 
-    frechet_train_syn, mmd_train_syn = _pair_metrics(real_train_emb, syn_emb)
-    frechet_train_holdout, mmd_train_holdout = _pair_metrics(real_train_emb, real_holdout_emb)
+    frechet_train_syn, mmd_train_syn = _pair_metrics(
+        real_train_emb,
+        syn_emb,
+        mmd_batch_size=mmd_batch_size,
+    )
+    frechet_train_holdout, mmd_train_holdout = _pair_metrics(
+        real_train_emb,
+        real_holdout_emb,
+        mmd_batch_size=mmd_batch_size,
+    )
 
     return asdict(
         FreeTextDistributionSummary(
