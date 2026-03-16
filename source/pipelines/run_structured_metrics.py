@@ -165,6 +165,7 @@ def main() -> None:
     if not structured_columns:
         raise ValueError("No structured columns remained after removing free_text_columns.")
 
+    print(f"Evaluating structured QA metrics on columns: {structured_columns}")
     real_train, real_holdout = train_test_split(
         real_df,
         test_size=holdout_fraction,
@@ -177,21 +178,6 @@ def main() -> None:
         holdout_df=real_holdout,
         non_free_text_columns=structured_columns,
     )
-
-    free_text_distribution: dict[str, Any] | None = None
-    if text_columns:
-        try:
-            free_text_distribution = evaluate_first_free_text_distribution(
-                real_df=real_train,
-                synthetic_df=synthetic_df,
-                real_holdout_df=real_holdout,
-                free_text_columns=text_columns,
-                embedding_dim=text_embedding_dim,
-                max_features=text_max_features,
-            )
-        except Exception as exc:  # pragma: no cover - dataset/config dependent
-            free_text_distribution = {"error": str(exc)}
-            print(f"Warning: unable to compute free-text distribution metrics: {exc}")
 
     quality_report_data: dict[str, Any]
     try:
@@ -214,6 +200,24 @@ def main() -> None:
             "error": str(exc),
         }
         print(f"Warning: unable to compute SDV quality report: {exc}")
+    
+    print(f"Evaluating free-text distribution metrics on column: {text_columns[0:1]} (if any)")
+    free_text_distribution: dict[str, Any] | None = None
+    if text_columns:
+        try:
+            free_text_distribution = evaluate_first_free_text_distribution(
+                real_df=real_train,
+                synthetic_df=synthetic_df,
+                real_holdout_df=real_holdout,
+                free_text_columns=text_columns[0:1],
+                embedding_dim=text_embedding_dim,
+                max_features=text_max_features,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            free_text_distribution = {"error": str(exc)}
+            print(f"Warning: unable to compute free-text distribution metrics: {exc}")
+
+
 
     payload = {
         "dataset_name": dataset_name,
