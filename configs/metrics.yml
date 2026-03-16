@@ -28,4 +28,4 @@ random_state: 42
 # MMD is computed exactly in batches to avoid allocating full pairwise distance tensors.
 text_embedding_dim: 768
 text_max_features: 200000
-text_mmd_batch_size: 1024
+text_mmd_batch_size: 4096
