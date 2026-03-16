@@ -104,6 +104,7 @@ def main() -> None:
     random_seed = int(cfg.get("random_state", 42))
     text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
     text_max_features = int(cfg.get("text_max_features", 200_000))
+    text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 2048))
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -212,6 +213,7 @@ def main() -> None:
                 free_text_columns=text_columns[0:1],
                 embedding_dim=text_embedding_dim,
                 max_features=text_max_features,
+                mmd_batch_size=text_mmd_batch_size,
             )
         except Exception as exc:  # pragma: no cover - dataset/config dependent
             free_text_distribution = {"error": str(exc)}
