@@ -31,6 +31,8 @@ class FreeTextDistributionSummary:
     n_synthetic: int
     frechet_distance: float
     mmd_rbf: float
+    frechet_real_train_vs_synthetic: float
+    mmd_rbf_real_train_vs_synthetic: float
     frechet_real_train_vs_real_holdout: float
     mmd_rbf_real_train_vs_real_holdout: float
     frechet_ratio_to_holdout: float
@@ -259,6 +261,8 @@ def evaluate_first_free_text_distribution(
             n_synthetic=int(syn_emb.shape[0]),
             frechet_distance=float(frechet_train_syn),
             mmd_rbf=float(mmd_train_syn),
+            frechet_real_train_vs_synthetic=float(frechet_train_syn),
+            mmd_rbf_real_train_vs_synthetic=float(mmd_train_syn),
             frechet_real_train_vs_real_holdout=float(frechet_train_holdout),
             mmd_rbf_real_train_vs_real_holdout=float(mmd_train_holdout),
             frechet_ratio_to_holdout=_safe_ratio(frechet_train_syn, frechet_train_holdout),

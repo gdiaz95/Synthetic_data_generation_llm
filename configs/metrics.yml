@@ -22,7 +22,7 @@ metadata_json_path: .metadata/{dataset_name}/metadata.json
 holdout_fraction: 0.2
 random_state: 42
 
-# Free-text distribution metric settings (first free-text column only).
+# Free-text distribution metric settings (applied per configured free-text column).
 # FID/FBD is computed whole-to-whole over global mean/covariance in one embedding space.
 # Calibration is reported against real-train vs real-holdout in the same embedding run.
 # MMD is computed exactly in batches to avoid allocating full pairwise distance tensors.
