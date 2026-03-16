@@ -14,6 +14,7 @@ if str(root_path) not in sys.path:
 import pandas as pd
 import yaml
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 from source.metrics.structured_metrics import evaluate_structured_qa_metrics
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
@@ -104,7 +105,7 @@ def main() -> None:
     random_seed = int(cfg.get("random_state", 42))
     text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
     text_max_features = int(cfg.get("text_max_features", 200_000))
-    text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 2048))
+    text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 4096))
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -202,22 +203,28 @@ def main() -> None:
         }
         print(f"Warning: unable to compute SDV quality report: {exc}")
     
-    print(f"Evaluating free-text distribution metrics on column: {text_columns[0:1]} (if any)")
+    print(f"Evaluating free-text distribution metrics on columns: {text_columns} (if any)")
     free_text_distribution: dict[str, Any] | None = None
     if text_columns:
-        try:
-            free_text_distribution = evaluate_first_free_text_distribution(
-                real_df=real_train,
-                synthetic_df=synthetic_df,
-                real_holdout_df=real_holdout,
-                free_text_columns=text_columns[0:1],
-                embedding_dim=text_embedding_dim,
-                max_features=text_max_features,
-                mmd_batch_size=text_mmd_batch_size,
-            )
-        except Exception as exc:  # pragma: no cover - dataset/config dependent
-            free_text_distribution = {"error": str(exc)}
-            print(f"Warning: unable to compute free-text distribution metrics: {exc}")
+        free_text_distribution = {}
+        with tqdm(total=len(text_columns), desc="Free-text metric columns", unit="column", dynamic_ncols=True) as column_bar:
+            for column_name in text_columns:
+                print(f"[free-text] Evaluating column: {column_name}")
+                try:
+                    free_text_distribution[column_name] = evaluate_first_free_text_distribution(
+                        real_df=real_train,
+                        synthetic_df=synthetic_df,
+                        real_holdout_df=real_holdout,
+                        free_text_columns=[column_name],
+                        embedding_dim=text_embedding_dim,
+                        max_features=text_max_features,
+                        mmd_batch_size=text_mmd_batch_size,
+                    )
+                except Exception as exc:  # pragma: no cover - dataset/config dependent
+                    free_text_distribution[column_name] = {"error": str(exc)}
+                    print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
+                finally:
+                    column_bar.update(1)
 
 
 
