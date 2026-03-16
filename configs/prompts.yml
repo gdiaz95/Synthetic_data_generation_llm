@@ -7,7 +7,10 @@ free_text_prompt: |
   - Max {max_words} words.
   - No names, employer names, addresses, or specific company locations.
   - No salary numbers.
-  - Natural prose (not a list). Neutral, survey-like.
+  - Mimic the linguistic style, tone, and vocabulary of the neighbor examples exactly.
+  - If neighbors use fragments, shorthand, or industry-specific jargon, do the same.
+  - Match the "unpolished" nature of the real data; avoid sounding like an AI assistant.
+  - Vary sentence structure and length to match the provided examples.
   - Stay consistent with the structured fields; if uncertain, keep it generic.
   - Do NOT copy phrases from the neighbor snippets; use them only for general themes/style.
 
