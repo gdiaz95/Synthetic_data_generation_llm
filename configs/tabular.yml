@@ -1,4 +1,4 @@
-input_csv: data/small/adult_with_job_description_small.csv
+input_csv: data/small/adult_with_job_description.csv
 output_csv: data/processed/adults_synthetic_small.csv
 text_column: job_description
 json_path: null
