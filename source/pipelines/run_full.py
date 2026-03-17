@@ -156,6 +156,7 @@ def _write_run_log(output_csv: Path, run_details: dict[str, Any]) -> Path:
     return log_path
 
 
+
 def _detect_free_text_candidates(df: pd.DataFrame, threshold: float) -> list[str]:
     candidates: list[str] = []
     for col in df.columns:
@@ -399,6 +400,12 @@ def main() -> None:
 
     generated = tabular_result.synthetic_data.copy()
     output_model_name = llm_cfg["model"]
+    llm_usage = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "requests": 0,
+    }
     text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
     stage_nn_idx = tabular_result.nn_idx
     if text_columns:
@@ -458,6 +465,7 @@ def main() -> None:
                     f"column={text_column}, real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
                 )
         finally:
+            llm_usage = llm_server.get_usage_summary()
             if llm_server.provider == "local":
                 llm_server.cleanup()
     else:
@@ -478,6 +486,7 @@ def main() -> None:
         "tabular_config": tabular_cfg,
         "llm_config": llm_cfg,
         "prompts_config": prompt_cfg,
+        "llm_usage": llm_usage,
         "resolved_hyperparameters": {
             "knn_k": int(tabular_cfg["knn_k"]),
             "epsilon": tabular_cfg["epsilon"],
@@ -493,6 +502,14 @@ def main() -> None:
     }
     log_path = _write_run_log(output_csv, run_details)
     print(f"📝 Saved run hyperparameter log to: {log_path}")
+    print(
+        "🔢 LLM token usage summary: "
+        f"prompt_tokens={llm_usage['prompt_tokens']}, "
+        f"completion_tokens={llm_usage['completion_tokens']}, "
+        f"total_tokens={llm_usage['total_tokens']}, "
+        f"requests={llm_usage['requests']}"
+    )
+
 
 
 if __name__ == "__main__":

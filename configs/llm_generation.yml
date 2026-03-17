@@ -57,3 +57,4 @@ distance_alpha: 1.0
 distance_beta_default: 0.2
 # Optional per-column overrides, e.g. {job_summary: 0.3}
 distance_beta_by_column: {}
+
