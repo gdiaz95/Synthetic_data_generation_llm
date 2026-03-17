@@ -7,7 +7,6 @@ import pandas as pd
 from scipy import linalg
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
-from tqdm import tqdm
 
 
 @dataclass
@@ -71,7 +70,6 @@ def _mean_rbf_kernel_blockwise(
     gamma: float,
     batch_size: int,
     show_progress: bool = False,
-    progress_desc: str | None = None,
 ) -> float:
     """Compute mean RBF kernel value in blocks to avoid O(n*m*d) allocation."""
     if batch_size <= 0:
@@ -85,10 +83,7 @@ def _mean_rbf_kernel_blockwise(
     x_batch_starts = list(range(0, x.shape[0], batch_size))
     y_batch_starts = list(range(0, y.shape[0], batch_size))
     total_batches = len(x_batch_starts) * len(y_batch_starts)
-
-    progress = None
-    if show_progress:
-        progress = tqdm(total=total_batches, desc=progress_desc, unit="batch", dynamic_ncols=True)
+    completed_batches = 0
 
     for i in x_batch_starts:
         xb = x[i : i + batch_size]
@@ -103,11 +98,10 @@ def _mean_rbf_kernel_blockwise(
             kernel = np.exp(-gamma * dist2)
             total += float(kernel.sum())
             count += int(kernel.size)
-            if progress is not None:
-                progress.update(1)
+            completed_batches += 1
 
-    if progress is not None:
-        progress.close()
+    if show_progress:
+        print(f"[free-text] Completed MMD kernel blocks: {completed_batches}/{total_batches}")
 
     if count == 0:
         return float("nan")
@@ -135,14 +129,12 @@ def _rbf_mmd_biased_batched(
         median = float(np.median(dist2[dist2 > 0])) if np.any(dist2 > 0) else 1.0
         gamma = 1.0 / max(median, 1e-9)
 
-    prefix = f"{progress_prefix} " if progress_prefix else ""
     mean_kxx = _mean_rbf_kernel_blockwise(
         x,
         x,
         gamma=gamma,
         batch_size=batch_size,
         show_progress=show_progress,
-        progress_desc=f"{prefix}MMD Kxx",
     )
     mean_kyy = _mean_rbf_kernel_blockwise(
         y,
@@ -150,7 +142,6 @@ def _rbf_mmd_biased_batched(
         gamma=gamma,
         batch_size=batch_size,
         show_progress=show_progress,
-        progress_desc=f"{prefix}MMD Kyy",
     )
     mean_kxy = _mean_rbf_kernel_blockwise(
         x,
@@ -158,7 +149,6 @@ def _rbf_mmd_biased_batched(
         gamma=gamma,
         batch_size=batch_size,
         show_progress=show_progress,
-        progress_desc=f"{prefix}MMD Kxy",
     )
     return float(mean_kxx + mean_kyy - 2.0 * mean_kxy)
 
@@ -226,11 +216,17 @@ def _pair_metrics(
     show_progress: bool = False,
     progress_prefix: str = "",
 ) -> tuple[float, float]:
+    if show_progress:
+        label = progress_prefix or "current pair"
+        print(f"[free-text] Generating future distance for {label}...")
     mu_x = x.mean(axis=0)
     mu_y = y.mean(axis=0)
     cov_x = np.cov(x, rowvar=False)
     cov_y = np.cov(y, rowvar=False)
     frechet = _frechet_distance(mu_x, cov_x, mu_y, cov_y)
+
+    if show_progress:
+        print(f"[free-text] Generating MMD for {label}...")
     mmd = _rbf_mmd_biased_batched(
         x,
         y,
@@ -288,6 +284,8 @@ def evaluate_first_free_text_distribution(
     if real_train_text.empty or real_holdout_text.empty or syn_text.empty:
         raise ValueError("Free-text metric requires non-empty real-train, real-holdout, and synthetic text rows.")
 
+    if show_batch_progress:
+        print(f"[free-text] Generating embeddings for {progress_prefix or text_column}...")
     embedded_sets, latent_dim = _embed_tfidf_svd_many(
         [real_train_text, real_holdout_text, syn_text],
         embedding_dim=embedding_dim,
