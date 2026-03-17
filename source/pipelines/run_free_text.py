@@ -78,13 +78,17 @@ def build_prompt_from_structured_with_neighbors(
     max_neighbors: int = 3,
     max_words_reader: int = 250,
     target_words: int | None = None,
-    reference_row: dict[str, Any] | None = None,
 ) -> str:
-    clean = {
-        key: value
-        for key, value in fields.items()
-        if key != text_column and value is not None and pd.notna(value)
-    }
+    clean: dict[str, Any] = {}
+    for key, value in fields.items():
+        if key == text_column or value is None:
+            continue
+        if not isinstance(value, (list, tuple, dict, set)) and pd.isna(value):
+            continue
+        if isinstance(value, str):
+            clean[key] = cap_words(value, max_words_reader)
+        else:
+            clean[key] = value
 
     snippets: list[str] = []
     if neighbor_rows:
@@ -103,18 +107,6 @@ def build_prompt_from_structured_with_neighbors(
                 )
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
-    reference_block = "(none)"
-    if reference_row is not None:
-        reference_fields = {
-            key: value
-            for key, value in reference_row.items()
-            if key != text_column and value is not None and pd.notna(value)
-        }
-        reference_text = cap_words(str(reference_row.get(text_column, "")), max_words_reader)
-        reference_block = (
-            f"profile: {reference_fields}\n"
-            f"{text_column}: {reference_text}"
-        )
 
     calibrated_target_words = max(
         1,
@@ -126,9 +118,8 @@ def build_prompt_from_structured_with_neighbors(
         max_words_reader=max_words_reader,
         target_words=calibrated_target_words,
         text_column=text_column,
-        structured_fields=clean,
+        target_profile=clean,
         neighbor_block=neighbor_block,
-        reference_block=reference_block,
     ).strip()
 
 
@@ -202,10 +193,6 @@ def generate_free_text_column(
                 row_copy[text_column] = sanitized
                 sanitized_neighbor_rows.append(row_copy)
 
-            reference_index = i if i < len(original_df) else int(neighbor_pos[0])
-            reference_row = original_df.iloc[reference_index].to_dict()
-            reference_row[text_column] = sanitize_neighbor_text(str(reference_row.get(text_column, "")))
-
             neighbor_lengths = [
                 len(re.findall(r"\S+", str(row.get(text_column, "")).strip()))
                 for row in sanitized_neighbor_rows
@@ -225,7 +212,6 @@ def generate_free_text_column(
                 max_neighbors=int(llm_cfg["k_neighbors"]),
                 max_words_reader=max_words_reader,
                 target_words=min(max_words_generation, max(1, avg_neighbor_words)),
-                reference_row=reference_row,
             )
             prompts.append(prompt)
         return prompts
