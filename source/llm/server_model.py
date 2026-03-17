@@ -2,6 +2,7 @@ import argparse
 import gc
 import json
 import os
+import threading
 import time
 import subprocess
 import urllib.error
@@ -151,6 +152,12 @@ class SingleGPUServer:
        self.max_len = args.max_len
        self.enforce_eager = bool(getattr(args, "enforce_eager", False))
        self.llm = None
+       self._usage_lock = threading.Lock()
+       self._usage_totals = {
+           "prompt_tokens": 0,
+           "completion_tokens": 0,
+           "requests": 0,
+       }
 
 
        print("🚀 Initializing model server")
@@ -256,6 +263,29 @@ class SingleGPUServer:
                "OpenAI provider selected but OPENAI_API_KEY is missing. "
                "Add it to your .env file."
            )
+
+
+   def _record_usage(self, prompt_tokens=0, completion_tokens=0, requests=1):
+       prompt_tokens = int(prompt_tokens or 0)
+       completion_tokens = int(completion_tokens or 0)
+       requests = int(requests or 0)
+       with self._usage_lock:
+           self._usage_totals["prompt_tokens"] += max(0, prompt_tokens)
+           self._usage_totals["completion_tokens"] += max(0, completion_tokens)
+           self._usage_totals["requests"] += max(0, requests)
+
+
+   def get_usage_summary(self):
+       with self._usage_lock:
+           prompt_tokens = int(self._usage_totals["prompt_tokens"])
+           completion_tokens = int(self._usage_totals["completion_tokens"])
+           requests = int(self._usage_totals["requests"])
+       return {
+           "prompt_tokens": prompt_tokens,
+           "completion_tokens": completion_tokens,
+           "total_tokens": prompt_tokens + completion_tokens,
+           "requests": requests,
+       }
 
 
    @staticmethod
@@ -369,6 +399,13 @@ class SingleGPUServer:
 
        data = self._retry_gemini_request(_request)
 
+       usage = data.get("usageMetadata") or {}
+       self._record_usage(
+           prompt_tokens=usage.get("promptTokenCount", 0),
+           completion_tokens=usage.get("candidatesTokenCount", 0),
+           requests=1,
+       )
+
 
        candidates = data.get("candidates") or []
        if not candidates:
@@ -407,6 +444,16 @@ class SingleGPUServer:
 
 
        response = self._retry_gemini_request(_request)
+
+       usage = getattr(response, "usage_metadata", None)
+       if usage is not None:
+           self._record_usage(
+               prompt_tokens=getattr(usage, "prompt_token_count", 0),
+               completion_tokens=getattr(usage, "candidates_token_count", 0),
+               requests=1,
+           )
+       else:
+           self._record_usage(requests=1)
 
 
        text = getattr(response, "text", None)
@@ -458,6 +505,13 @@ class SingleGPUServer:
            raise APIModelConnectionError(
                "Couldn't connect to OpenAI API. Check network access and API key."
            ) from exc
+
+       usage = data.get("usage") or {}
+       self._record_usage(
+           prompt_tokens=usage.get("prompt_tokens", 0),
+           completion_tokens=usage.get("completion_tokens", 0),
+           requests=1,
+       )
 
 
        choices = data.get("choices") or []
@@ -545,6 +599,17 @@ class SingleGPUServer:
 
 
        outputs = self.llm.generate(prompts, sampling_params)
+       prompt_tokens = 0
+       completion_tokens = 0
+       for output in outputs:
+           prompt_tokens += len(getattr(output, "prompt_token_ids", []) or [])
+           first_output = output.outputs[0] if output.outputs else None
+           completion_tokens += len(getattr(first_output, "token_ids", []) or [])
+       self._record_usage(
+           prompt_tokens=prompt_tokens,
+           completion_tokens=completion_tokens,
+           requests=len(prompts),
+       )
        return [o.outputs[0].text.strip() for o in outputs]
 
 if __name__ == "__main__":
