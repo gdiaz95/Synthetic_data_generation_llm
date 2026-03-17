@@ -23,6 +23,7 @@ from source.pipelines.text_vector_prep import prepare_text_vector_features
 
 DEFAULT_CONFIG_DIR = Path("configs")
 DEFAULT_METADATA_ROOT = Path(".metadata")
+DEFAULT_LOG_DIR = Path("logs")
 
 
 def _read_yaml(path: Path) -> dict:
@@ -144,6 +145,15 @@ def _load_metadata(path: Path) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         raise ValueError(f"Metadata file must be a JSON object: {path}")
     return payload
+
+
+def _write_run_log(output_csv: Path, run_details: dict[str, Any]) -> Path:
+    log_path = DEFAULT_LOG_DIR / f"{output_csv.stem}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as handle:
+        json.dump(run_details, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    return log_path
 
 
 def _detect_free_text_candidates(df: pd.DataFrame, threshold: float) -> list[str]:
@@ -458,6 +468,31 @@ def main() -> None:
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     generated.to_csv(output_csv, index=False)
     print(f"✅ Saved synthetic dataset to: {output_csv}")
+
+    run_details = {
+        "dataset_name": dataset_name,
+        "input_csv": str(input_csv),
+        "output_csv": str(output_csv),
+        "text_columns": text_columns,
+        "feature_weights": feature_weights,
+        "tabular_config": tabular_cfg,
+        "llm_config": llm_cfg,
+        "prompts_config": prompt_cfg,
+        "resolved_hyperparameters": {
+            "knn_k": int(tabular_cfg["knn_k"]),
+            "epsilon": tabular_cfg["epsilon"],
+            "enforce_min_max_values": bool(tabular_cfg["enforce_min_max_values"]),
+            "distance_alpha": distance_alpha,
+            "distance_beta_default": distance_beta_default,
+            "distance_beta_by_column": distance_beta_by_column,
+            "max_words_generation": max_words_generation,
+            "max_words_reader": max_words_reader,
+            "parallel_api_calls": bool(llm_cfg.get("parallel_api_calls", False)),
+            "api_parallel_shards": int(llm_cfg.get("api_parallel_shards", 5)),
+        },
+    }
+    log_path = _write_run_log(output_csv, run_details)
+    print(f"📝 Saved run hyperparameter log to: {log_path}")
 
 
 if __name__ == "__main__":
