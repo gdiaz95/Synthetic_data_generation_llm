@@ -43,11 +43,11 @@ batch_log_every: 0
 
 # Optional API-only concurrency mode (disabled by default).
 # When true, rows are split across N shards and each shard calls the API in parallel.
-parallel_api_calls: False
-api_parallel_shards: 6
+parallel_api_calls: true
+api_parallel_shards: 64
 
 # Optional: hash-embedding size for lightweight text-vector preparation.
-text_vector_hash_dim: 8
+text_vector_hash_dim: 2000
 
 
 # Distance blending for multi-stage text generation.
