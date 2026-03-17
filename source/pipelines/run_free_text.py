@@ -72,12 +72,13 @@ def cap_words(text: str, max_words: int) -> str:
 def build_prompt_from_structured_with_neighbors(
     fields: dict[str, Any],
     prompt_template: str,
-    max_words: int,
+    max_words_generation: int,
     text_column: str,
     neighbor_rows: list[dict[str, Any]] | None = None,
     max_neighbors: int = 3,
-    neighbor_excerpt_words: int = 20,
+    max_words_reader: int = 250,
     target_words: int | None = None,
+    reference_row: dict[str, Any] | None = None,
 ) -> str:
     clean = {
         key: value
@@ -93,24 +94,41 @@ def build_prompt_from_structured_with_neighbors(
                 for key, value in row.items()
                 if key != text_column and value is not None and pd.notna(value)
             }
-            excerpt = cap_words(str(row.get(text_column, "")), neighbor_excerpt_words)
+            excerpt = cap_words(str(row.get(text_column, "")), max_words_reader)
             if excerpt:
                 snippets.append(
-                    f"- Neighbor {idx}\\n"
-                    f"  profile: {row_fields}\\n"
+                    f"- Neighbor {idx}\n"
+                    f"  profile: {row_fields}\n"
                     f"  {text_column}: {excerpt}"
                 )
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
+    reference_block = "(none)"
+    if reference_row is not None:
+        reference_fields = {
+            key: value
+            for key, value in reference_row.items()
+            if key != text_column and value is not None and pd.notna(value)
+        }
+        reference_text = cap_words(str(reference_row.get(text_column, "")), max_words_reader)
+        reference_block = (
+            f"profile: {reference_fields}\n"
+            f"{text_column}: {reference_text}"
+        )
 
-    calibrated_target_words = max(1, int(target_words if target_words is not None else max_words))
+    calibrated_target_words = max(
+        1,
+        int(target_words if target_words is not None else max_words_generation),
+    )
 
     return prompt_template.format(
-        max_words=max_words,
+        max_words_generation=max_words_generation,
+        max_words_reader=max_words_reader,
         target_words=calibrated_target_words,
         text_column=text_column,
         structured_fields=clean,
         neighbor_block=neighbor_block,
+        reference_block=reference_block,
     ).strip()
 
 
@@ -129,6 +147,10 @@ def generate_free_text_column(
 
     total_rows = len(generated)
     batch_size = max(1, int(llm_cfg.get("batch_size", 1)))
+    max_words_generation = int(
+        llm_cfg.get("max_words_generation", llm_cfg.get("max_words", 80))
+    )
+    max_words_reader = int(llm_cfg.get("max_words_reader", prompt_cfg.get("max_words_reader", 250)))
     generation_config = {
         "temperature": float(llm_cfg["temperature"]),
         "top_p": float(llm_cfg["top_p"]),
@@ -143,7 +165,8 @@ def generate_free_text_column(
         f"temperature={generation_config['temperature']}, "
         f"top_p={generation_config['top_p']}, "
         f"max_tokens={generation_config['max_tokens']}, "
-        f"max_words={int(llm_cfg['max_words'])}"
+        f"max_words_generation={max_words_generation}, "
+        f"max_words_reader={max_words_reader}"
     )
 
     batch_log_every = max(0, int(llm_cfg.get("batch_log_every", 0)))
@@ -179,6 +202,10 @@ def generate_free_text_column(
                 row_copy[text_column] = sanitized
                 sanitized_neighbor_rows.append(row_copy)
 
+            reference_index = i if i < len(original_df) else int(neighbor_pos[0])
+            reference_row = original_df.iloc[reference_index].to_dict()
+            reference_row[text_column] = sanitize_neighbor_text(str(reference_row.get(text_column, "")))
+
             neighbor_lengths = [
                 len(re.findall(r"\S+", str(row.get(text_column, "")).strip()))
                 for row in sanitized_neighbor_rows
@@ -187,17 +214,18 @@ def generate_free_text_column(
             if neighbor_lengths:
                 avg_neighbor_words = int(round(sum(neighbor_lengths) / len(neighbor_lengths)))
             else:
-                avg_neighbor_words = int(llm_cfg["max_words"])
+                avg_neighbor_words = max_words_generation
 
             prompt = build_prompt_from_structured_with_neighbors(
                 fields=generated.iloc[i].to_dict(),
                 prompt_template=prompt_cfg["free_text_prompt"],
-                max_words=int(llm_cfg["max_words"]),
+                max_words_generation=max_words_generation,
                 text_column=text_column,
                 neighbor_rows=sanitized_neighbor_rows,
                 max_neighbors=int(llm_cfg["k_neighbors"]),
-                neighbor_excerpt_words=int(prompt_cfg["neighbor_excerpt_words"]),
-                target_words=min(int(llm_cfg["max_words"]), max(1, avg_neighbor_words)),
+                max_words_reader=max_words_reader,
+                target_words=min(max_words_generation, max(1, avg_neighbor_words)),
+                reference_row=reference_row,
             )
             prompts.append(prompt)
         return prompts
@@ -212,7 +240,7 @@ def generate_free_text_column(
                 cleaned_response = ""
             row_updates[i] = cap_words(
                 cleaned_response,
-                int(llm_cfg["max_words"]),
+                max_words_generation,
             )
         return row_updates
 
