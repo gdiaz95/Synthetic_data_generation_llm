@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import statistics
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
@@ -77,7 +78,8 @@ def build_prompt_from_structured_with_neighbors(
     neighbor_rows: list[dict[str, Any]] | None = None,
     max_neighbors: int = 3,
     max_words_reader: int = 250,
-    target_words: int | None = None,
+    target_min_words: int | None = None,
+    target_max_words: int | None = None,
 ) -> str:
     clean: dict[str, Any] = {}
     for key, value in fields.items():
@@ -108,15 +110,20 @@ def build_prompt_from_structured_with_neighbors(
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
 
-    calibrated_target_words = max(
+    calibrated_target_min_words = max(
         1,
-        int(target_words if target_words is not None else max_words_generation),
+        int(target_min_words if target_min_words is not None else max_words_generation),
+    )
+    calibrated_target_max_words = max(
+        calibrated_target_min_words,
+        int(target_max_words if target_max_words is not None else max_words_generation),
     )
 
     return prompt_template.format(
         max_words_generation=max_words_generation,
         max_words_reader=max_words_reader,
-        target_words=calibrated_target_words,
+        target_min_words=calibrated_target_min_words,
+        target_max_words=calibrated_target_max_words,
         text_column=text_column,
         target_profile=clean,
         neighbor_block=neighbor_block,
@@ -199,9 +206,18 @@ def generate_free_text_column(
                 if str(row.get(text_column, "")).strip()
             ]
             if neighbor_lengths:
-                avg_neighbor_words = int(round(sum(neighbor_lengths) / len(neighbor_lengths)))
+                avg_neighbor_words = sum(neighbor_lengths) / len(neighbor_lengths)
+                std_neighbor_words = statistics.pstdev(neighbor_lengths)
             else:
-                avg_neighbor_words = max_words_generation
+                avg_neighbor_words = float(max_words_generation)
+                std_neighbor_words = 0.0
+
+            target_min_words = max(1, int(round(avg_neighbor_words - (2 * std_neighbor_words))))
+            target_max_words = min(
+                max_words_generation,
+                int(round(avg_neighbor_words + (2 * std_neighbor_words))),
+            )
+            target_max_words = max(target_min_words, target_max_words)
 
             prompt = build_prompt_from_structured_with_neighbors(
                 fields=generated.iloc[i].to_dict(),
@@ -211,7 +227,8 @@ def generate_free_text_column(
                 neighbor_rows=sanitized_neighbor_rows,
                 max_neighbors=int(llm_cfg["k_neighbors"]),
                 max_words_reader=max_words_reader,
-                target_words=min(max_words_generation, max(1, avg_neighbor_words)),
+                target_min_words=target_min_words,
+                target_max_words=target_max_words,
             )
             prompts.append(prompt)
         return prompts
