@@ -10,14 +10,11 @@ free_text_prompt: |
   - If neighbors use fragments, shorthand, or industry-specific jargon, do the same.
   - Match the "unpolished" nature of the real data; avoid sounding like an AI assistant.
   - Vary sentence structure and length to match the provided examples.
-  - Stay consistent with the structured fields; if uncertain, keep it generic.
+  - Stay consistent with the target profile; if uncertain, keep it generic.
   - Do NOT copy phrases from the neighbor snippets; use them only for general themes/style.
 
-  Structured fields (target profile):
-  {structured_fields}
-
-  Matching real-data row (full profile + {text_column}, capped at {max_words_reader} words only if needed):
-  {reference_block}
+  Target profile:
+  {target_profile}
 
   Neighbor examples (each includes full profile + {text_column}, capped at {max_words_reader} words only if needed; for themes only; do not copy):
   {neighbor_block}

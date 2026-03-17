@@ -117,6 +117,13 @@ Controls **free-text generation** and model backend behavior.
 
 Controls prompt template text and neighbor snippet formatting.
 
+### Quick mapping: target profile vs neighbors
+- For each synthetic index `i`, the pipeline already has a synthetic target row `s_i` (this is the prompt's `Target profile`).
+- It then uses `nn_idx[i]` to retrieve the nearest real rows in latent/tabular space; these are the `Neighbor examples`.
+- So mathematically:
+  - target to fill text for: `s_i` (synthetic row),
+  - context rows from real data: `{r_j : j in nn_idx[i, :k]}`.
+
 ### `neighbor_excerpt_words`
 - **What it is:** Word limit per retrieved neighbor snippet included in the prompt.
 - **Used by:** `build_prompt_from_structured_with_neighbors(...)` via `cap_words`.
@@ -127,7 +134,7 @@ Controls prompt template text and neighbor snippet formatting.
 - **Template placeholders:**
   - `{max_words}` from `llm_generation.yml:max_words`
   - `{target_words}` dynamic average word count from retrieved neighbor examples
-  - `{structured_fields}` from each synthetic row
+  - `{target_profile}` from each synthetic row (includes non-current fields; string fields are capped by max reader words)
   - `{neighbor_block}` built from nearest-neighbor text snippets
 - **Output contract:** Instructs model to return only a single prose job description with privacy/format constraints.
 
