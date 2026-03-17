@@ -221,7 +221,7 @@ def _resolve_metadata(
     df: pd.DataFrame,
     *,
     dataset_name: str,
-    configured_text_column: str,
+    configured_text_column: str | None,
     threshold: float,
     cli_feature_weights_path: Path | None,
     configured_json_path: Any | None,
@@ -236,7 +236,7 @@ def _resolve_metadata(
         free_text_columns = metadata.get("free_text_columns") or []
         if not isinstance(free_text_columns, list):
             raise ValueError("'free_text_columns' in metadata.json must be a list.")
-        text_columns = [str(col) for col in free_text_columns] if free_text_columns else [configured_text_column]
+        text_columns = [str(col) for col in free_text_columns]
 
         metadata_weights = metadata.get("feature_weights")
         feature_weights: dict[str, float] | None = None
@@ -245,7 +245,7 @@ def _resolve_metadata(
                 raise ValueError("'feature_weights' in metadata.json must be an object.")
             feature_weights = {str(k): float(v) for k, v in metadata_weights.items()}
     else:
-        text_columns = [configured_text_column]
+        text_columns = [configured_text_column] if configured_text_column else []
         feature_weights = None
 
         if allow_interactive_fallback and sys.stdin.isatty():
@@ -258,8 +258,11 @@ def _resolve_metadata(
             if text_columns:
                 print(f"Confirmed free-text columns: {', '.join(text_columns)}")
             else:
-                print("No free-text columns confirmed interactively; falling back to configured text_column.")
-                text_columns = [configured_text_column]
+                if configured_text_column:
+                    print("No free-text columns confirmed interactively; falling back to configured text_column.")
+                    text_columns = [configured_text_column]
+                else:
+                    print("No free-text columns confirmed interactively; continuing with tabular-only generation.")
 
             feature_weights = _prompt_feature_weights(df, set(text_columns))
 
@@ -276,7 +279,7 @@ def _resolve_metadata(
             print(f"Metadata JSON not found at {metadata_file}; using configured defaults.")
 
     text_columns = [col for col in text_columns if col]
-    if not text_columns:
+    if not text_columns and configured_text_column:
         text_columns = [configured_text_column]
 
     unique_text_columns: list[str] = []
@@ -316,7 +319,7 @@ def main() -> None:
     print(f"- input_csv: {input_csv}")
     print(f"- output_csv: {output_csv}")
     print(f"- feature_weights_json: {args.feature_weights_json or '(none)'}")
-    print(f"- text_column: {tabular_cfg.get('text_column', 'job_description')}")
+    print(f"- text_column: {tabular_cfg.get('text_column', '(none)')}")
     neighbor_k = int(tabular_cfg['knn_k'])
     print(f"- shared neighbor_k (from tabular.knn_k): {neighbor_k}")
     llm_cfg['k_neighbors'] = neighbor_k
@@ -350,7 +353,7 @@ def main() -> None:
     df = pd.read_csv(input_csv)
     print(f"Loaded dataframe with shape: {df.shape}")
 
-    configured_text_column = tabular_cfg.get("text_column", "job_description")
+    configured_text_column = tabular_cfg.get("text_column")
     dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
     text_columns, feature_weights = _resolve_metadata(
         df,
@@ -384,70 +387,74 @@ def main() -> None:
         f"KNN index shape: {tabular_result.nn_idx.shape}"
     )
 
-    server_args = SimpleNamespace(
-        model=llm_cfg["model"],
-        provider=llm_cfg.get("provider", "auto"),
-        utilization=float(llm_cfg["gpu_memory_utilization"]),
-        max_len=int(llm_cfg["max_model_len"]),
-        enforce_eager=bool(llm_cfg.get("enforce_eager", False) or args.enforce_eager),
-    )
-
-    llm_server = SingleGPUServer(server_args)
     generated = tabular_result.synthetic_data.copy()
+    output_model_name = llm_cfg["model"]
     text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
     stage_nn_idx = tabular_result.nn_idx
-    try:
-        print("\n[2/3] Running LLM free-text generation...")
-        for stage_idx, text_column in enumerate(text_columns, start=1):
-            print(f"\n  -> Free-text stage {stage_idx}/{len(text_columns)} for column '{text_column}'")
-            if text_vector_blocks:
-                weighted_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] = []
-                for prev_col, block in text_vector_blocks.items():
-                    beta = float(distance_beta_by_column.get(prev_col, distance_beta_default))
-                    weighted_blocks.append((block["real"], block["synthetic"], beta))
-                stage_nn_idx, _ = knn_retrieval_with_text_blocks(
-                    tabular_result.real_z,
-                    tabular_result.z_correlated,
-                    k=int(tabular_cfg["knn_k"]),
-                    alpha=distance_alpha,
-                    text_blocks=weighted_blocks,
-                    feature_weights=feature_weights,
+    if text_columns:
+        server_args = SimpleNamespace(
+            model=llm_cfg["model"],
+            provider=llm_cfg.get("provider", "auto"),
+            utilization=float(llm_cfg["gpu_memory_utilization"]),
+            max_len=int(llm_cfg["max_model_len"]),
+            enforce_eager=bool(llm_cfg.get("enforce_eager", False) or args.enforce_eager),
+        )
+        llm_server = SingleGPUServer(server_args)
+        output_model_name = llm_server.model_name
+        try:
+            print("\n[2/3] Running LLM free-text generation...")
+            for stage_idx, text_column in enumerate(text_columns, start=1):
+                print(f"\n  -> Free-text stage {stage_idx}/{len(text_columns)} for column '{text_column}'")
+                if text_vector_blocks:
+                    weighted_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] = []
+                    for prev_col, block in text_vector_blocks.items():
+                        beta = float(distance_beta_by_column.get(prev_col, distance_beta_default))
+                        weighted_blocks.append((block["real"], block["synthetic"], beta))
+                    stage_nn_idx, _ = knn_retrieval_with_text_blocks(
+                        tabular_result.real_z,
+                        tabular_result.z_correlated,
+                        k=int(tabular_cfg["knn_k"]),
+                        alpha=distance_alpha,
+                        text_blocks=weighted_blocks,
+                        feature_weights=feature_weights,
+                    )
+                    print(
+                        "     Updated KNN with blended distance: "
+                        f"alpha={distance_alpha}, text_blocks={len(weighted_blocks)}"
+                    )
+                else:
+                    stage_nn_idx = tabular_result.nn_idx
+                    print("     Using tabular-only KNN for first text stage.")
+
+                generated = generate_free_text_column(
+                    llm_server=llm_server,
+                    original_df=df,
+                    synthetic_df=generated,
+                    nn_idx=stage_nn_idx,
+                    llm_cfg=llm_cfg,
+                    prompt_cfg=prompt_cfg,
+                    text_column=text_column,
                 )
+
+                hash_dim = int(llm_cfg.get("text_vector_hash_dim", 8))
+                real_text_vectors = prepare_text_vector_features(df[text_column], hash_dim=hash_dim)
+                synthetic_text_vectors = prepare_text_vector_features(generated[text_column], hash_dim=hash_dim)
+                text_vector_blocks[text_column] = {
+                    "real": real_text_vectors,
+                    "synthetic": synthetic_text_vectors,
+                }
                 print(
-                    "     Updated KNN with blended distance: "
-                    f"alpha={distance_alpha}, text_blocks={len(weighted_blocks)}"
+                    "     Prepared text vectors for distance integration: "
+                    f"column={text_column}, real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
                 )
-            else:
-                stage_nn_idx = tabular_result.nn_idx
-                print("     Using tabular-only KNN for first text stage.")
-
-            generated = generate_free_text_column(
-                llm_server=llm_server,
-                original_df=df,
-                synthetic_df=generated,
-                nn_idx=stage_nn_idx,
-                llm_cfg=llm_cfg,
-                prompt_cfg=prompt_cfg,
-                text_column=text_column,
-            )
-
-            hash_dim = int(llm_cfg.get("text_vector_hash_dim", 8))
-            real_text_vectors = prepare_text_vector_features(df[text_column], hash_dim=hash_dim)
-            synthetic_text_vectors = prepare_text_vector_features(generated[text_column], hash_dim=hash_dim)
-            text_vector_blocks[text_column] = {
-                "real": real_text_vectors,
-                "synthetic": synthetic_text_vectors,
-            }
-            print(
-                "     Prepared text vectors for distance integration: "
-                f"column={text_column}, real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
-            )
-    finally:
-        if llm_server.provider == "local":
-            llm_server.cleanup()
+        finally:
+            if llm_server.provider == "local":
+                llm_server.cleanup()
+    else:
+        print("\n[2/3] Skipping LLM free-text generation (no text columns configured).")
 
     print("[3/3] Saving generated dataset...")
-    output_csv = _with_model_suffix(output_csv, llm_server.model_name)
+    output_csv = _with_model_suffix(output_csv, output_model_name)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     generated.to_csv(output_csv, index=False)
     print(f"✅ Saved synthetic dataset to: {output_csv}")
