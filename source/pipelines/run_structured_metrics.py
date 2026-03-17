@@ -14,7 +14,6 @@ if str(root_path) not in sys.path:
 import pandas as pd
 import yaml
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 
 from source.metrics.structured_metrics import evaluate_structured_qa_metrics
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
@@ -207,8 +206,8 @@ def main() -> None:
     free_text_distribution: dict[str, Any] | None = None
     if text_columns:
         free_text_distribution = {}
-        for column_name in tqdm(text_columns, desc="Free-text metric columns", unit="column", dynamic_ncols=True):
-            print(f"[free-text] Evaluating column: {column_name}")
+        for column_name in text_columns:
+            print(f"[free-text] Processing column: {column_name}")
             try:
                 free_text_distribution[column_name] = evaluate_first_free_text_distribution(
                     real_df=real_train,
@@ -218,7 +217,10 @@ def main() -> None:
                     embedding_dim=text_embedding_dim,
                     max_features=text_max_features,
                     mmd_batch_size=text_mmd_batch_size,
+                    show_batch_progress=True,
+                    progress_prefix=f"{column_name}",
                 )
+                print(f"[free-text] Finished metrics for column: {column_name}")
             except Exception as exc:  # pragma: no cover - dataset/config dependent
                 free_text_distribution[column_name] = {"error": str(exc)}
                 print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
