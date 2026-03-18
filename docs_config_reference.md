@@ -103,7 +103,31 @@ Controls **free-text generation** and model backend behavior.
 - **What it is:** Delay between per-row generation calls.
 - **Used by:** `time.sleep(...)` after each generated row.
 - **Effect:** Helps reduce API throttling/rate-limit bursts.
-- **Current value:** `0.1`
+- **Current value:** `1.0`
+
+### `empty_response_retry_attempts`
+- **What it is:** Number of times to retry a Gemini response that returns successfully but contains no text body.
+- **Used by:** Gemini SDK/REST response handling before surfacing a row-level failure.
+- **Effect:** Helps recover from empty candidates, blocked outputs, or transient preview-model oddities.
+- **Current value:** `3`
+
+### `empty_response_retry_sleep_sec`
+- **What it is:** Delay between retries for empty Gemini responses.
+- **Used by:** Gemini empty-response retry loop.
+- **Effect:** Reduces rapid-fire retries after transient empty responses.
+- **Current value:** `1.0`
+
+### `rerun_failed_rows`
+- **What it is:** Whether to retry only rows that still failed after the initial pass.
+- **Used by:** Free-text generation retry pass after sequential/parallel processing.
+- **Effect:** Avoids rerunning successful rows and improves resilience for long jobs.
+- **Current value:** `true`
+
+### `failed_row_retry_passes`
+- **What it is:** Number of follow-up passes over only the failed rows.
+- **Used by:** Free-text generation recovery loop.
+- **Effect:** Gives transient row-level failures another chance without restarting the full job.
+- **Current value:** `1`
 
 ### `text_vector_hash_dim`
 - **What it is:** Hash-embedding width used for lightweight text-vector preparation after each generated free-text column.

@@ -28,6 +28,18 @@ class APIModelConnectionError(RuntimeError):
    """Raised when a remote API model cannot be reached or authenticated."""
 
 
+def _stringify_response_value(value):
+   if value is None:
+       return None
+   if hasattr(value, "name"):
+       return str(getattr(value, "name"))
+   if hasattr(value, "value"):
+       raw_value = getattr(value, "value")
+       if raw_value is not None:
+           return str(raw_value)
+   return str(value)
+
+
 def _extract_status_code(exc):
    """Best-effort status extraction for SDK errors (Gemini/OpenAI clients)."""
    for attr in ("status_code", "code", "status"):
@@ -302,6 +314,96 @@ class SingleGPUServer:
        return status_code in {408, 429, 500, 502, 503, 504}
 
 
+   @staticmethod
+   def _gemini_empty_response_retry_attempts(config):
+       return max(1, int(config.get("empty_response_retry_attempts", 3)))
+
+
+   @staticmethod
+   def _gemini_empty_response_retry_sleep(config):
+       return max(0.0, float(config.get("empty_response_retry_sleep_sec", 1.0)))
+
+
+   def _format_gemini_sdk_response_diagnostics(self, response):
+       details = []
+       candidates = getattr(response, "candidates", None) or []
+       details.append(f"candidate_count={len(candidates)}")
+
+       prompt_feedback = getattr(response, "prompt_feedback", None)
+       if prompt_feedback is not None:
+           block_reason = _stringify_response_value(
+               getattr(prompt_feedback, "block_reason", None)
+           )
+           if block_reason:
+               details.append(f"prompt_block_reason={block_reason}")
+
+       for idx, candidate in enumerate(candidates[:2]):
+           finish_reason = _stringify_response_value(
+               getattr(candidate, "finish_reason", None)
+           )
+           if finish_reason:
+               details.append(f"candidate_{idx}_finish_reason={finish_reason}")
+
+           safety_ratings = getattr(candidate, "safety_ratings", None) or []
+           if safety_ratings:
+               condensed = []
+               for rating in safety_ratings[:3]:
+                   category = _stringify_response_value(
+                       getattr(rating, "category", None)
+                   )
+                   probability = _stringify_response_value(
+                       getattr(rating, "probability", None)
+                   )
+                   blocked = getattr(rating, "blocked", None)
+                   condensed.append(
+                       f"{category or 'unknown'}:{probability or 'unknown'}"
+                       + (
+                           f":blocked={blocked}"
+                           if blocked is not None
+                           else ""
+                       )
+                   )
+               details.append(
+                   f"candidate_{idx}_safety_ratings=[{', '.join(condensed)}]"
+               )
+
+       return "; ".join(details)
+
+
+   def _format_gemini_rest_response_diagnostics(self, data):
+       details = []
+       candidates = data.get("candidates") or []
+       details.append(f"candidate_count={len(candidates)}")
+
+       prompt_feedback = data.get("promptFeedback") or {}
+       if prompt_feedback.get("blockReason"):
+           details.append(f"prompt_block_reason={prompt_feedback['blockReason']}")
+
+       for idx, candidate in enumerate(candidates[:2]):
+           finish_reason = candidate.get("finishReason")
+           if finish_reason:
+               details.append(f"candidate_{idx}_finish_reason={finish_reason}")
+
+           safety_ratings = candidate.get("safetyRatings") or []
+           if safety_ratings:
+               condensed = []
+               for rating in safety_ratings[:3]:
+                   condensed.append(
+                       f"{rating.get('category', 'unknown')}:"
+                       f"{rating.get('probability', 'unknown')}"
+                       + (
+                           f":blocked={rating.get('blocked')}"
+                           if rating.get("blocked") is not None
+                           else ""
+                       )
+                   )
+               details.append(
+                   f"candidate_{idx}_safety_ratings=[{', '.join(condensed)}]"
+               )
+
+       return "; ".join(details)
+
+
    def _retry_gemini_request(self, make_request):
        max_attempts = 5
        base_wait_seconds = 2
@@ -396,27 +498,42 @@ class SingleGPUServer:
            with urllib.request.urlopen(request, timeout=45) as response:
                return json.loads(response.read().decode("utf-8"))
 
+       empty_response_attempts = self._gemini_empty_response_retry_attempts(config)
+       empty_response_wait = self._gemini_empty_response_retry_sleep(config)
+       diagnostics = "candidate_count=0"
 
-       data = self._retry_gemini_request(_request)
+       for attempt in range(1, empty_response_attempts + 1):
+           data = self._retry_gemini_request(_request)
 
-       usage = data.get("usageMetadata") or {}
-       self._record_usage(
-           prompt_tokens=usage.get("promptTokenCount", 0),
-           completion_tokens=usage.get("candidatesTokenCount", 0),
-           requests=1,
-       )
-
-
-       candidates = data.get("candidates") or []
-       if not candidates:
-           raise APIModelConnectionError(
-               "Gemini returned no candidates. Check API key/model access."
+           usage = data.get("usageMetadata") or {}
+           self._record_usage(
+               prompt_tokens=usage.get("promptTokenCount", 0),
+               completion_tokens=usage.get("candidatesTokenCount", 0),
+               requests=1,
            )
 
+           candidates = data.get("candidates") or []
+           if candidates:
+               parts = candidates[0].get("content", {}).get("parts", [])
+               text_parts = [part.get("text", "") for part in parts if part.get("text")]
+               text = "\n".join(text_parts).strip()
+               if text:
+                   return text
 
-       parts = candidates[0].get("content", {}).get("parts", [])
-       text_parts = [part.get("text", "") for part in parts if part.get("text")]
-       return "\n".join(text_parts).strip()
+           diagnostics = self._format_gemini_rest_response_diagnostics(data)
+           if attempt < empty_response_attempts:
+               print(
+                   "⚠️  Gemini returned an empty response body. "
+                   f"Retrying in {empty_response_wait}s "
+                   f"(attempt {attempt}/{empty_response_attempts})... {diagnostics}"
+               )
+               time.sleep(empty_response_wait)
+               continue
+
+       raise APIModelConnectionError(
+           "Gemini returned an empty response after retries. "
+           f"Details: {diagnostics}"
+       )
 
 
    def _generate_with_gemini(self, prompt, config):
@@ -443,26 +560,40 @@ class SingleGPUServer:
            )
 
 
-       response = self._retry_gemini_request(_request)
+       empty_response_attempts = self._gemini_empty_response_retry_attempts(config)
+       empty_response_wait = self._gemini_empty_response_retry_sleep(config)
+       diagnostics = "candidate_count=0"
 
-       usage = getattr(response, "usage_metadata", None)
-       if usage is not None:
-           self._record_usage(
-               prompt_tokens=getattr(usage, "prompt_token_count", 0),
-               completion_tokens=getattr(usage, "candidates_token_count", 0),
-               requests=1,
-           )
-       else:
-           self._record_usage(requests=1)
+       for attempt in range(1, empty_response_attempts + 1):
+           response = self._retry_gemini_request(_request)
 
+           usage = getattr(response, "usage_metadata", None)
+           if usage is not None:
+               self._record_usage(
+                   prompt_tokens=getattr(usage, "prompt_token_count", 0),
+                   completion_tokens=getattr(usage, "candidates_token_count", 0),
+                   requests=1,
+               )
+           else:
+               self._record_usage(requests=1)
 
-       text = getattr(response, "text", None)
-       if text:
-           return text.strip()
+           text = getattr(response, "text", None)
+           if text:
+               return text.strip()
 
+           diagnostics = self._format_gemini_sdk_response_diagnostics(response)
+           if attempt < empty_response_attempts:
+               print(
+                   "⚠️  Gemini returned an empty response body. "
+                   f"Retrying in {empty_response_wait}s "
+                   f"(attempt {attempt}/{empty_response_attempts})... {diagnostics}"
+               )
+               time.sleep(empty_response_wait)
+               continue
 
        raise APIModelConnectionError(
-           "Gemini returned an empty response. Check API key/model access."
+           "Gemini returned an empty response after retries. "
+           f"Details: {diagnostics}"
        )
 
 
