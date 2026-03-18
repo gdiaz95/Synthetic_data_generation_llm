@@ -175,6 +175,8 @@ def generate_free_text_column(
 
     parallel_api_calls = bool(llm_cfg.get("parallel_api_calls", False))
     api_parallel_shards = max(1, int(llm_cfg.get("api_parallel_shards", 5)))
+    rerun_failed_rows = bool(llm_cfg.get("rerun_failed_rows", True))
+    failed_row_retry_passes = max(0, int(llm_cfg.get("failed_row_retry_passes", 1)))
     if llm_server.provider in {"gemini", "openai"} and parallel_api_calls:
         print(
             "- Parallel API mode: enabled "
@@ -185,6 +187,11 @@ def generate_free_text_column(
             "- Parallel API mode: disabled "
             "(either flag is false or provider is local)."
         )
+    print(
+        "- Failed-row rerun: "
+        f"{'enabled' if rerun_failed_rows else 'disabled'} "
+        f"(passes={failed_row_retry_passes})."
+    )
 
     def _build_prompts_for_indices(batch_indices: list[int]) -> list[str]:
         prompts: list[str] = []
@@ -233,21 +240,58 @@ def generate_free_text_column(
             prompts.append(prompt)
         return prompts
 
-    def _process_batch(batch_indices: list[int]) -> dict[int, str]:
+    def _process_batch(
+        batch_indices: list[int],
+    ) -> tuple[dict[int, str], dict[int, str]]:
         prompts = _build_prompts_for_indices(batch_indices)
-        responses = llm_server.generate_batch(prompts, config=generation_config)
         row_updates: dict[int, str] = {}
-        for i, response_text in zip(batch_indices, responses):
+        failed_updates: dict[int, str] = {}
+        try:
+            responses = llm_server.generate_batch(prompts, config=generation_config)
+        except Exception:
+            responses = []
+
+        if responses:
+            for i, response_text in zip(batch_indices, responses):
+                try:
+                    cleaned_response = clean_generated_text(response_text)
+                    if looks_like_meta_output(cleaned_response):
+                        cleaned_response = ""
+                    row_updates[i] = cap_words(
+                        cleaned_response,
+                        max_words_generation,
+                    )
+                except Exception as exc:
+                    failed_updates[i] = f"{type(exc).__name__}: {exc}"
+
+        if not responses or len(responses) != len(batch_indices):
+            pending_indices = [
+                i for i in batch_indices if i not in row_updates and i not in failed_updates
+            ]
+            for i in pending_indices:
+                text, error = _process_single_row(i)
+                if error is None and text is not None:
+                    row_updates[i] = text
+                else:
+                    failed_updates[i] = error or "No response was returned for this row."
+        missing_indices = set(batch_indices) - set(row_updates) - set(failed_updates)
+        for i in sorted(missing_indices):
+            failed_updates[i] = "No response was returned for this row."
+        return row_updates, failed_updates
+
+    def _process_single_row(i: int) -> tuple[str | None, str | None]:
+        try:
+            prompt = _build_prompts_for_indices([i])[0]
+            response_text = llm_server.generate_batch([prompt], config=generation_config)[0]
             cleaned_response = clean_generated_text(response_text)
             if looks_like_meta_output(cleaned_response):
                 cleaned_response = ""
-            row_updates[i] = cap_words(
-                cleaned_response,
-                max_words_generation,
-            )
-        return row_updates
+            return cap_words(cleaned_response, max_words_generation), None
+        except Exception as exc:
+            return None, f"{type(exc).__name__}: {exc}"
 
-    def _run_sequential() -> pd.DataFrame:
+    def _run_sequential() -> tuple[pd.DataFrame, dict[int, str]]:
+        failed_rows: dict[int, str] = {}
         progress = tqdm(
             range(0, total_rows, batch_size),
             desc=f"Generating {text_column}",
@@ -257,7 +301,7 @@ def generate_free_text_column(
         for batch_num, batch_start in enumerate(progress, start=1):
             batch_end = min(batch_start + batch_size, total_rows)
             batch_indices = list(range(batch_start, batch_end))
-            row_updates = _process_batch(batch_indices)
+            row_updates, batch_failures = _process_batch(batch_indices)
 
             if batch_log_every and batch_num % batch_log_every == 0:
                 progress.write(
@@ -268,12 +312,13 @@ def generate_free_text_column(
 
             for i, text in row_updates.items():
                 generated.at[generated.index[i], text_column] = text
+            failed_rows.update(batch_failures)
 
             time.sleep(float(llm_cfg["sleep_sec"]))
 
-        return generated
+        return generated, failed_rows
 
-    def _run_parallel_api() -> pd.DataFrame:
+    def _run_parallel_api() -> tuple[pd.DataFrame, dict[int, str]]:
         shard_indices = [
             list(range(start, total_rows, api_parallel_shards))
             for start in range(api_parallel_shards)
@@ -291,12 +336,17 @@ def generate_free_text_column(
             )
             progress_bars.append(bar)
 
-        def _run_shard(shard_id: int, indices: list[int]) -> tuple[int, dict[int, str]]:
+        def _run_shard(
+            shard_id: int,
+            indices: list[int],
+        ) -> tuple[int, dict[int, str], dict[int, str]]:
             shard_updates: dict[int, str] = {}
+            shard_failures: dict[int, str] = {}
             for batch_num, offset in enumerate(range(0, len(indices), batch_size), start=1):
                 batch_indices = indices[offset : offset + batch_size]
-                row_updates = _process_batch(batch_indices)
+                row_updates, batch_failures = _process_batch(batch_indices)
                 shard_updates.update(row_updates)
+                shard_failures.update(batch_failures)
                 progress_bars[shard_id].update(len(batch_indices))
                 if batch_log_every and batch_num % batch_log_every == 0:
                     progress_bars[shard_id].write(
@@ -304,26 +354,78 @@ def generate_free_text_column(
                         f"generated {len(batch_indices)} row(s)."
                     )
                 time.sleep(float(llm_cfg["sleep_sec"]))
-            return shard_id, shard_updates
+            return shard_id, shard_updates, shard_failures
 
+        failed_rows: dict[int, str] = {}
         with ThreadPoolExecutor(max_workers=len(shard_indices)) as executor:
             futures = [
                 executor.submit(_run_shard, shard_id, indices)
                 for shard_id, indices in enumerate(shard_indices)
             ]
             for future in as_completed(futures):
-                _, shard_updates = future.result()
+                _, shard_updates, shard_failures = future.result()
                 for i, text in shard_updates.items():
                     generated.at[generated.index[i], text_column] = text
+                failed_rows.update(shard_failures)
 
         for bar in progress_bars:
             bar.close()
 
-        return generated
+        return generated, failed_rows
+
+    def _retry_failed_rows(failed_rows: dict[int, str]) -> dict[int, str]:
+        remaining_failures = dict(failed_rows)
+        if not remaining_failures or not rerun_failed_rows or failed_row_retry_passes <= 0:
+            return remaining_failures
+
+        for retry_pass in range(1, failed_row_retry_passes + 1):
+            retry_indices = sorted(remaining_failures)
+            if not retry_indices:
+                break
+
+            print(
+                f"- Retry pass {retry_pass}/{failed_row_retry_passes} "
+                f"for {len(retry_indices)} failed row(s)."
+            )
+            next_failures: dict[int, str] = {}
+            progress = tqdm(
+                retry_indices,
+                desc=f"Retrying {text_column}",
+                dynamic_ncols=True,
+            )
+            for i in progress:
+                text, error = _process_single_row(i)
+                if error is None and text is not None:
+                    generated.at[generated.index[i], text_column] = text
+                else:
+                    next_failures[i] = error or "No response was returned for this row."
+                time.sleep(float(llm_cfg["sleep_sec"]))
+
+            recovered = len(remaining_failures) - len(next_failures)
+            print(
+                f"  • Retry pass {retry_pass} recovered {recovered} row(s); "
+                f"{len(next_failures)} still failing."
+            )
+            remaining_failures = next_failures
+
+        return remaining_failures
+
     if llm_server.provider in {"gemini", "openai"} and parallel_api_calls:
-        generated = _run_parallel_api()
+        generated, failed_rows = _run_parallel_api()
     else:
-        generated = _run_sequential()
+        generated, failed_rows = _run_sequential()
+
+    failed_rows = _retry_failed_rows(failed_rows)
+    if failed_rows:
+        print(
+            f"⚠️  Free-text generation left {len(failed_rows)} row(s) empty "
+            "after retries/reruns."
+        )
+        sample_indices = list(sorted(failed_rows))[:5]
+        for i in sample_indices:
+            print(f"   - row {i}: {failed_rows[i]}")
+    else:
+        print("- All rows generated successfully after retries/reruns.")
 
     print("- Free-text generation complete.")
 
