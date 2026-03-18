@@ -1,73 +1,12 @@
 import csv
-import os
-import sys
-project_root = os.path.abspath(os.path.join(os.getcwd(), '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+from io import StringIO
+from pathlib import Path
 
+import pandas as pd
 
-input_file = "data/potential/Airbnb.csv"
-output_file = "data/potential/Airbnb_fixed.csv"
-
-
-def safe_decode(line):
-    """
-    Try multiple encodings safely.
-    """
-    for enc in ["utf-8", "cp1252", "latin1"]:
-        try:
-            return line.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    # last resort: replace bad chars
-    return line.decode("utf-8", errors="replace")
-
-
-def fix_mojibake(text):
-    if text is None:
-        return text
-
-    suspicious = ["Â", "Ã", "Å", "â", "€", "œ", "�"]
-    if not any(s in text for s in suspicious):
-        return text
-
-    try:
-        return text.encode("latin1").decode("utf-8")
-    except:
-        pass
-
-    try:
-        return text.encode("cp1252").decode("utf-8")
-    except:
-        pass
-
-    return text
-
-
-with open(input_file, "rb") as infile, \
-     open(output_file, "w", encoding="utf-8", newline="") as outfile:
-
-    writer = csv.writer(outfile)
-
-    for line_number, raw_line in enumerate(infile, start=1):
-
-        decoded_line = safe_decode(raw_line)
-
-        row = next(csv.reader([decoded_line]))
-
-        fixed_row = [fix_mojibake(field) for field in row]
-
-        writer.writerow(fixed_row)
-
-print("Done. File cleaned safely.")
-
-INPUT_FILE = "data/potential/Airbnb_fixed.csv"
-OUTPUT_FILE = "data/raw/airbnb.csv"
-
-df = pd.read_csv(INPUT_FILE, low_memory=False)
-
-# Columns to drop
-drop_cols = [
+POTENTIAL_FILE = Path("data/potential/Airbnb.csv")
+RAW_FILE = Path("data/raw/Airbnb.csv")
+DROP_COLUMNS = [
     "listing_id",
     "host_id",
     "host_since",
@@ -79,22 +18,83 @@ drop_cols = [
     "room_type",
 ]
 
-df = df.drop(columns=drop_cols, errors="ignore")
 
-# Minimal cleaning (keep everything as-is, just strip whitespace)
-for col in df.columns:
-    if df[col].dtype == "object":
-        df[col] = df[col].astype("string").str.strip()
+def safe_decode(line: bytes) -> str:
+    """Decode a CSV line using the first compatible encoding."""
+    for encoding in ("utf-8", "cp1252", "latin1"):
+        try:
+            return line.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return line.decode("utf-8", errors="replace")
 
-# Ensure amenities and name are strings (important for later text modeling)
-df["amenities"] = df["amenities"].astype("string")
-df["name"] = df["name"].astype("string")
 
-# Save
-df.to_csv(OUTPUT_FILE, index=False)
+def fix_mojibake(text: str | None) -> str | None:
+    if text is None:
+        return text
 
-print(f"Saved dataset to: {OUTPUT_FILE}")
-print("\nColumns:")
-print(df.columns.tolist())
-print("\nShape:")
-print(df.shape)
+    suspicious = ("Â", "Ã", "Å", "â", "€", "œ", "�")
+    if not any(char in text for char in suspicious):
+        return text
+
+    for source_encoding in ("latin1", "cp1252"):
+        try:
+            return text.encode(source_encoding).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+
+    return text
+
+
+def load_cleaned_dataframe(input_file: Path) -> pd.DataFrame:
+    cleaned_buffer = StringIO()
+    writer = csv.writer(cleaned_buffer)
+
+    with input_file.open("rb") as infile:
+        for raw_line in infile:
+            decoded_line = safe_decode(raw_line)
+            row = next(csv.reader([decoded_line]))
+            cleaned_row = [fix_mojibake(field) for field in row]
+            writer.writerow(cleaned_row)
+
+    cleaned_buffer.seek(0)
+    return pd.read_csv(cleaned_buffer, low_memory=False)
+
+
+def preprocess_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.drop(columns=DROP_COLUMNS, errors="ignore")
+
+    for column in df.columns:
+        if pd.api.types.is_object_dtype(df[column]) or pd.api.types.is_string_dtype(df[column]):
+            df[column] = df[column].astype("string").str.strip()
+
+    for column in ("amenities", "name"):
+        if column in df.columns:
+            df[column] = df[column].astype("string")
+
+    return df
+
+
+def main() -> None:
+    if RAW_FILE.exists():
+        print(f"Done. Raw dataset already exists at: {RAW_FILE}")
+        return
+
+    if not POTENTIAL_FILE.exists():
+        raise FileNotFoundError(f"Missing input dataset: {POTENTIAL_FILE}")
+
+    df = load_cleaned_dataframe(POTENTIAL_FILE)
+    df = preprocess_columns(df)
+
+    RAW_FILE.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(RAW_FILE, index=False)
+
+    print(f"Done. Saved raw dataset to: {RAW_FILE}")
+    print("Columns:")
+    print(df.columns.tolist())
+    print("Shape:")
+    print(df.shape)
+
+
+if __name__ == "__main__":
+    main()
