@@ -1,5 +1,5 @@
-input_csv: data/raw/adult_with_three.csv
-output_csv: data/processed/adults_synthetic_three.csv
+input_csv: data/raw/Spotify.csv
+output_csv: data/processed/Spotify.csv
 json_path: null
 
 knn_k: 5
