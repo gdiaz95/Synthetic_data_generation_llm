@@ -13,7 +13,7 @@ class TabularGenerationResult:
     synthetic_data: pd.DataFrame
     z_correlated: pd.DataFrame
     real_z: pd.DataFrame
-    nn_idx: np.ndarray
+    nn_idx: np.ndarray | None
 
 
 def knn_retrieval_step1(
@@ -206,14 +206,18 @@ def run_tabular_generation(
         f"Columns: {synthetic_data.shape[1]}"
     )
 
-    print(f"- Running KNN retrieval in latent space with k={int(tabular_cfg['knn_k'])}...")
-    nn_idx, _ = knn_retrieval_step1(
-        real_z,
-        z_correlated,
-        k=int(tabular_cfg["knn_k"]),
-        feature_weights=feature_weights,
-    )
-    print("- Tabular generation and KNN retrieval complete.")
+    nn_idx: np.ndarray | None = None
+    if text_columns:
+        print(f"- Running KNN retrieval in latent space with k={int(tabular_cfg['knn_k'])}...")
+        nn_idx, _ = knn_retrieval_step1(
+            real_z,
+            z_correlated,
+            k=int(tabular_cfg["knn_k"]),
+            feature_weights=feature_weights,
+        )
+        print("- Tabular generation and KNN retrieval complete.")
+    else:
+        print("- No free-text columns configured; skipping KNN retrieval.")
 
     return TabularGenerationResult(
         synthetic_data=synthetic_data,
