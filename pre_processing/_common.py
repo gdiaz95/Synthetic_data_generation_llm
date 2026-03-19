@@ -50,7 +50,11 @@ def load_csv(input_file: Path, **read_csv_kwargs: Any) -> pd.DataFrame:
     raw_content = input_file.read_bytes()
     decoded_text = safe_decode(raw_content)
 
-    default_kwargs: dict[str, Any] = {"low_memory": False}
+    default_kwargs: dict[str, Any] = {}
+    engine = read_csv_kwargs.get("engine")
+    if engine != "python":
+        default_kwargs["low_memory"] = False
+
     default_kwargs.update(read_csv_kwargs)
     return pd.read_csv(StringIO(decoded_text), **default_kwargs)
 
