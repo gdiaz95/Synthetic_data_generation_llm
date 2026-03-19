@@ -1,79 +1,41 @@
-import io
+from __future__ import annotations
+
+from pathlib import Path
+
 import pandas as pd
 
-INPUT_FILE = "data/potential/Kickstarter.csv"
-OUTPUT_REPORT = "dataset_report.txt"
-OUTPUT_FILE = "data/raw/Kickstarter.csv"
+from _common import POTENTIAL_DIR, RAW_DIR, normalize_object_columns, run_preprocessing
 
-def safe_decode(line: bytes) -> str:
-    """Decode a CSV line using the first compatible encoding."""
-    for encoding in ("utf-8", "cp1252", "latin1"):
-        try:
-            return line.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    return line.decode("utf-8", errors="replace")
-
-
-def fix_mojibake(text):
-    if text is None or pd.isna(text):
-        return text
-    if not isinstance(text, str):
-        return text
-
-    suspicious = ("Â", "Ã", "Å", "â", "€", "œ", "�")
-    if not any(char in text for char in suspicious):
-        return text
-
-    for source_encoding in ("latin1", "cp1252"):
-        try:
-            return text.encode(source_encoding).decode("utf-8")
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            continue
-
-    return text
-
-
-with open(INPUT_FILE, "rb") as f:
-    lines = f.readlines()
-
-decoded_lines = [safe_decode(line) for line in lines]
-csv_text = "".join(decoded_lines)
-
-df = pd.read_csv(io.StringIO(csv_text), low_memory=False)
-
-# Normalize column names once at the beginning
-df.columns = (
-    df.columns
-    .str.strip()
-    .str.lower()
-    .str.replace(r"\s+", "_", regex=True)
-)
-
-for col in df.select_dtypes(include=["object"]).columns:
-    df[col] = df[col].map(fix_mojibake)
-
-cols_to_drop = [
+INPUT_FILE = POTENTIAL_DIR / "Kickstarter.csv"
+OUTPUT_FILE = RAW_DIR / "Kickstarter.csv"
+DROP_COLUMNS = [
     "main_category",
     "deadline",
     "id",
     "usd_pledged",
 ]
 
-unnamed_cols = [col for col in df.columns if col.startswith("unnamed")]
-df = df.drop(columns=cols_to_drop + unnamed_cols, errors="ignore")
 
-if "launched" in df.columns:
-    df["launched"] = pd.to_datetime(df["launched"], errors="coerce")
+def preprocess_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = df.columns.str.strip().str.lower().str.replace(r"\s+", "_", regex=True)
+    df = normalize_object_columns(df)
 
-    df["launch_year"] = df["launched"].dt.year
-    df["launch_month"] = df["launched"].dt.month
-    df["launch_day"] = df["launched"].dt.day
+    unnamed_cols = [column for column in df.columns if column.startswith("unnamed")]
+    df = df.drop(columns=DROP_COLUMNS + unnamed_cols, errors="ignore")
 
-    df = df.drop(columns=["launched"])
+    if "launched" in df.columns:
+        df["launched"] = pd.to_datetime(df["launched"], errors="coerce")
+        df["launch_year"] = df["launched"].dt.year
+        df["launch_month"] = df["launched"].dt.month
+        df["launch_day"] = df["launched"].dt.day
+        df = df.drop(columns=["launched"])
 
-print(df.head())
-print(df.shape)
-print(df.columns)
+    return df
 
-df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
+
+def main() -> Path:
+    return run_preprocessing("Kickstarter", INPUT_FILE, OUTPUT_FILE, preprocess_columns)
+
+
+if __name__ == "__main__":
+    main()
