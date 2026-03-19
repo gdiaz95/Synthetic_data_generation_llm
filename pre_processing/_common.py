@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import csv
 from io import StringIO
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import pandas as pd
 
@@ -15,15 +14,14 @@ RAW_DIR = DATA_DIR / "raw"
 Transform = Callable[[pd.DataFrame], pd.DataFrame]
 
 
-def safe_decode(line: bytes) -> str:
-    """Decode a CSV line using the first compatible encoding."""
+def safe_decode(raw_content: bytes) -> str:
+    """Decode file contents using the first compatible encoding."""
     for encoding in ("utf-8", "cp1252", "latin1"):
         try:
-            return line.decode(encoding)
+            return raw_content.decode(encoding)
         except UnicodeDecodeError:
             continue
-    return line.decode("utf-8", errors="replace")
-
+    return raw_content.decode("utf-8", errors="replace")
 
 
 def fix_mojibake(text):
@@ -45,35 +43,36 @@ def fix_mojibake(text):
     return text
 
 
-
-def load_csv(input_file: Path) -> pd.DataFrame:
+def load_csv(input_file: Path, **read_csv_kwargs: Any) -> pd.DataFrame:
     if not input_file.exists():
         raise FileNotFoundError(f"Missing input dataset: {input_file}")
 
-    cleaned_buffer = StringIO()
-    writer = csv.writer(cleaned_buffer)
+    raw_content = input_file.read_bytes()
+    decoded_text = safe_decode(raw_content)
 
-    with input_file.open("rb") as infile:
-        for raw_line in infile:
-            decoded_line = safe_decode(raw_line)
-            row = next(csv.reader([decoded_line]))
-            cleaned_row = [fix_mojibake(field) for field in row]
-            writer.writerow(cleaned_row)
-
-    cleaned_buffer.seek(0)
-    return pd.read_csv(cleaned_buffer, low_memory=False)
-
+    default_kwargs: dict[str, Any] = {"low_memory": False}
+    default_kwargs.update(read_csv_kwargs)
+    return pd.read_csv(StringIO(decoded_text), **default_kwargs)
 
 
 def normalize_object_columns(df: pd.DataFrame) -> pd.DataFrame:
-    for column in df.select_dtypes(include=["object"]).columns:
+    for column in df.select_dtypes(include=["object", "string"]).columns:
         df[column] = df[column].map(fix_mojibake)
     return df
 
 
+def run_preprocessing(
+    name: str,
+    input_file: Path,
+    output_file: Path,
+    transform: Transform,
+    **read_csv_kwargs: Any,
+) -> Path:
+    if output_file.exists():
+        print(f"[{name}] Skipping pre-processing because output already exists: {output_file}")
+        return output_file
 
-def run_preprocessing(name: str, input_file: Path, output_file: Path, transform: Transform) -> Path:
-    df = load_csv(input_file)
+    df = load_csv(input_file, **read_csv_kwargs)
     df = transform(df)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)

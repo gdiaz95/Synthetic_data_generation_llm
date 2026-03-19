@@ -35,7 +35,14 @@ def preprocess_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> Path:
-    return run_preprocessing("consumer_complaint", INPUT_FILE, OUTPUT_FILE, preprocess_columns)
+    return run_preprocessing(
+        "consumer_complaint",
+        INPUT_FILE,
+        OUTPUT_FILE,
+        preprocess_columns,
+        engine="python",
+        on_bad_lines="warn",
+    )
 
 
 if __name__ == "__main__":
