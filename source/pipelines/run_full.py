@@ -392,10 +392,11 @@ def main() -> None:
         text_columns=text_columns,
         feature_weights=feature_weights,
     )
+    knn_shape = None if tabular_result.nn_idx is None else tabular_result.nn_idx.shape
     print(
         "Tabular generation complete. "
         f"Synthetic shape: {tabular_result.synthetic_data.shape}; "
-        f"KNN index shape: {tabular_result.nn_idx.shape}"
+        f"KNN index shape: {knn_shape}"
     )
 
     generated = tabular_result.synthetic_data.copy()
