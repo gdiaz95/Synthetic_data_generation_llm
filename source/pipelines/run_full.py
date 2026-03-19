@@ -196,6 +196,70 @@ def _prompt_free_text_columns(df: pd.DataFrame, threshold: float) -> list[str]:
     return selected
 
 
+def _word_count_series(series: pd.Series) -> pd.Series:
+    non_null = series.dropna().astype(str).str.strip()
+    non_empty = non_null[non_null != ""]
+    if non_empty.empty:
+        return pd.Series(dtype="int64")
+    return non_empty.str.split().str.len().astype("int64")
+
+
+def _describe_word_counts(df: pd.DataFrame, text_column: str) -> dict[str, float | int]:
+    counts = _word_count_series(df[text_column])
+    if counts.empty:
+        return {
+            "count": 0,
+            "mean": 0.0,
+            "median": 0.0,
+            "p90": 0.0,
+            "p95": 0.0,
+            "max": 0,
+        }
+    return {
+        "count": int(counts.shape[0]),
+        "mean": float(counts.mean()),
+        "median": float(counts.median()),
+        "p90": float(counts.quantile(0.90)),
+        "p95": float(counts.quantile(0.95)),
+        "max": int(counts.max()),
+    }
+
+
+def _prompt_max_words_generation(
+    df: pd.DataFrame,
+    text_columns: list[str],
+    default_max_words_generation: int,
+) -> int:
+    print(
+        f"Configured default max_words_generation: {default_max_words_generation}"
+    )
+    for text_column in text_columns:
+        stats = _describe_word_counts(df, text_column)
+        if stats["count"] == 0:
+            print(f"- {text_column}: no non-empty rows found; keeping default.")
+            continue
+        print(
+            f"- {text_column}: "
+            f"count={stats['count']}, "
+            f"mean={stats['mean']:.1f}, "
+            f"median={stats['median']:.1f}, "
+            f"p90={stats['p90']:.1f}, "
+            f"p95={stats['p95']:.1f}, "
+            f"max={stats['max']}"
+        )
+
+    response = input(
+        f"Max words for LLM generation [{default_max_words_generation}]: "
+    ).strip()
+    if not response:
+        return default_max_words_generation
+
+    selected = int(response)
+    if selected <= 0:
+        raise ValueError("max_words_generation must be a positive integer.")
+    return selected
+
+
 def _prompt_feature_weights(df: pd.DataFrame, excluded_columns: set[str]) -> dict[str, float] | None:
     structured_cols = [c for c in df.columns if c not in excluded_columns]
     if not structured_cols:
@@ -236,7 +300,8 @@ def _resolve_metadata(
     threshold: float,
     cli_feature_weights_path: Path | None,
     configured_json_path: Any | None,
-) -> tuple[list[str], dict[str, float] | None]:
+    default_max_words_generation: int,
+) -> tuple[list[str], dict[str, float] | None, int]:
     metadata_file = _resolve_json_metadata_path(dataset_name, configured_json_path)
     configured_json_raw = "" if configured_json_path is None else str(configured_json_path).strip().lower()
     allow_interactive_fallback = configured_json_raw in {"", "none", "null"}
@@ -255,9 +320,17 @@ def _resolve_metadata(
             if not isinstance(metadata_weights, dict):
                 raise ValueError("'feature_weights' in metadata.json must be an object.")
             feature_weights = {str(k): float(v) for k, v in metadata_weights.items()}
+        metadata_max_words_generation = metadata.get("max_words_generation")
+        if metadata_max_words_generation is None:
+            max_words_generation = default_max_words_generation
+        else:
+            max_words_generation = int(metadata_max_words_generation)
+            if max_words_generation <= 0:
+                raise ValueError("'max_words_generation' in metadata.json must be a positive integer.")
     else:
         text_columns = [configured_text_column] if configured_text_column else []
         feature_weights = None
+        max_words_generation = default_max_words_generation
 
         if allow_interactive_fallback and sys.stdin.isatty():
             entered_dataset = input(f"Dataset name for metadata storage [{dataset_name}]: ").strip()
@@ -275,11 +348,18 @@ def _resolve_metadata(
                 else:
                     print("No free-text columns confirmed interactively; continuing with tabular-only generation.")
 
+            if text_columns:
+                max_words_generation = _prompt_max_words_generation(
+                    df,
+                    text_columns,
+                    default_max_words_generation,
+                )
             feature_weights = _prompt_feature_weights(df, set(text_columns))
 
             metadata_payload: dict[str, Any] = {
                 "dataset_name": dataset_name,
                 "free_text_columns": text_columns,
+                "max_words_generation": max_words_generation,
             }
             if feature_weights is not None:
                 metadata_payload["feature_weights"] = feature_weights
@@ -306,7 +386,7 @@ def _resolve_metadata(
         feature_weights = _load_feature_weights(cli_feature_weights_path)
         print(f"Using CLI feature weights from: {cli_feature_weights_path}")
 
-    return unique_text_columns, feature_weights
+    return unique_text_columns, feature_weights, max_words_generation
 
 
 def main() -> None:
@@ -343,7 +423,8 @@ def main() -> None:
     print(f"- llm batch_size: {llm_cfg.get('batch_size', 1)}")
     print(f"- llm temperature/top_p: {llm_cfg['temperature']}/{llm_cfg['top_p']}")
     print(f"- llm max_tokens: {llm_cfg['max_tokens']}")
-    max_words_generation = int(llm_cfg.get('max_words_generation', llm_cfg.get('max_words', 80)))
+    default_max_words_generation = int(llm_cfg.get('max_words_generation', llm_cfg.get('max_words', 80)))
+    max_words_generation = default_max_words_generation
     max_words_reader = int(llm_cfg.get('max_words_reader', prompt_cfg.get('max_words_reader', 250)))
     print(f"- llm max_words_generation: {max_words_generation}")
     print(f"- llm max_words_reader: {max_words_reader}")
@@ -366,15 +447,19 @@ def main() -> None:
 
     configured_text_column = tabular_cfg.get("text_column")
     dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
-    text_columns, feature_weights = _resolve_metadata(
+    text_columns, feature_weights, metadata_max_words_generation = _resolve_metadata(
         df,
         dataset_name=dataset_name,
         configured_text_column=configured_text_column,
         threshold=float(args.free_text_threshold),
         cli_feature_weights_path=args.feature_weights_json,
         configured_json_path=tabular_cfg.get("json_path"),
+        default_max_words_generation=default_max_words_generation,
     )
+    max_words_generation = int(metadata_max_words_generation)
+    llm_cfg["max_words_generation"] = max_words_generation
     print(f"- active text_columns: {text_columns}")
+    print(f"- resolved max_words_generation: {max_words_generation}")
 
     total_rows = len(df)
     if bool(llm_cfg.get("parallel_api_calls", False)):

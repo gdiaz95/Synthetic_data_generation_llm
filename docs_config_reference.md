@@ -82,6 +82,11 @@ Controls **free-text generation** and model backend behavior.
 - **Used by:** Prompt variable `{max_words}` and post-generation truncation (`cap_words`).
 - **Current value:** `80`
 
+### Metadata override: `max_words_generation`
+- **What it is:** Optional dataset-specific override stored in `.metadata/{dataset_name}/metadata.json`.
+- **Used by:** `run_full.py` to replace the config default after metadata is loaded or created interactively.
+- **Fallback behavior:** If the metadata field is missing, the pipeline uses `configs/llm_generation.yml:max_words_generation`.
+
 ### `temperature`
 - **What it is:** Sampling randomness for text generation.
 - **Used by:** `generate_batch(..., config={...})` passed to provider.
