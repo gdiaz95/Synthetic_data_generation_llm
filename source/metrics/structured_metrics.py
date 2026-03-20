@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from scipy import sparse
 from sklearn.linear_model import LogisticRegression, Ridge
@@ -15,6 +16,7 @@ from sklearn.metrics import (
     r2_score,
     roc_auc_score,
 )
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 
 from source.metrics.free_text_metrics import _embed_tfidf_svd_many
@@ -216,6 +218,103 @@ def _build_text_block(
     return train_matrix, test_matrix, int(latent_dim)
 
 
+def _build_weighted_feature_matrices(
+    *,
+    reference_df: pd.DataFrame,
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    structured_columns: list[str],
+    text_columns: list[str],
+    structured_weight: float,
+    text_weight_default: float,
+    text_weight_by_column: dict[str, float] | None = None,
+    text_embedding_dim: int = 768,
+    text_max_features: int = 50_000,
+) -> tuple[sparse.csr_matrix, sparse.csr_matrix, dict[str, Any]]:
+    text_weight_by_column = text_weight_by_column or {}
+
+    train_blocks: list[Any] = []
+    test_blocks: list[Any] = []
+    text_diagnostics: dict[str, dict[str, float | int]] = {}
+
+    structured_train, structured_test, structured_width = _build_structured_block(
+        reference_df,
+        train_df,
+        test_df,
+        structured_columns,
+    )
+    if structured_width > 0:
+        structured_train = _to_sparse_block(_normalize_block(structured_train) * float(structured_weight))
+        structured_test = _to_sparse_block(_normalize_block(structured_test) * float(structured_weight))
+        train_blocks.append(structured_train)
+        test_blocks.append(structured_test)
+
+    for column_name in text_columns:
+        text_train, text_test, width = _build_text_block(
+            train_df[column_name],
+            test_df[column_name],
+            embedding_dim=int(text_embedding_dim),
+            max_features=int(text_max_features),
+        )
+        if width == 0:
+            continue
+        weight = float(text_weight_by_column.get(column_name, text_weight_default))
+        text_train = _to_sparse_block(_normalize_block(text_train) * weight)
+        text_test = _to_sparse_block(_normalize_block(text_test) * weight)
+        train_blocks.append(text_train)
+        test_blocks.append(text_test)
+        text_diagnostics[column_name] = {
+            "width": width,
+            "weight": weight,
+        }
+
+    if not train_blocks:
+        raise ValueError("Could not build any structured or text features.")
+
+    x_train = sparse.hstack(train_blocks, format="csr")
+    x_test = sparse.hstack(test_blocks, format="csr")
+    diagnostics: dict[str, Any] = {
+        "structured_block": {
+            "width": structured_width,
+            "weight": float(structured_weight),
+        },
+        "text_blocks": text_diagnostics,
+        "total_feature_width": int(x_train.shape[1]),
+    }
+    return x_train, x_test, diagnostics
+
+
+def _holdout_discriminator_metrics(
+    train_x: sparse.csr_matrix,
+    test_x: sparse.csr_matrix,
+    *,
+    random_state: int = 42,
+) -> dict[str, float]:
+    x = sparse.vstack([train_x, test_x], format="csr")
+    y = np.concatenate(
+        [
+            np.zeros(train_x.shape[0], dtype=np.int64),
+            np.ones(test_x.shape[0], dtype=np.int64),
+        ]
+    )
+    x_train, x_eval, y_train, y_eval = train_test_split(
+        x,
+        y,
+        test_size=0.25,
+        random_state=random_state,
+        stratify=y,
+    )
+
+    model = LogisticRegression(max_iter=1000, random_state=random_state)
+    model.fit(x_train, y_train)
+    probabilities = model.predict_proba(x_eval)[:, 1]
+    predictions = model.predict(x_eval)
+    return {
+        "roc_auc": float(roc_auc_score(y_eval, probabilities)),
+        "accuracy": float(accuracy_score(y_eval, predictions)),
+    }
+
+
 def evaluate_tstr(
     *,
     train_df: pd.DataFrame,
@@ -252,46 +351,18 @@ def evaluate_tstr(
     y_test = holdout_eval[target_column]
     task = _infer_prediction_task(y_train)
 
-    train_blocks: list[Any] = []
-    test_blocks: list[Any] = []
-    text_diagnostics: dict[str, dict[str, float | int]] = {}
-
-    structured_train, structured_test, structured_width = _build_structured_block(
-        train_df,
-        syn_eval,
-        holdout_eval,
-        structured_columns,
+    x_train, x_test, feature_diagnostics = _build_weighted_feature_matrices(
+        reference_df=train_df,
+        train_df=syn_eval,
+        test_df=holdout_eval,
+        structured_columns=structured_columns,
+        text_columns=available_text_columns,
+        structured_weight=structured_weight,
+        text_weight_default=text_weight_default,
+        text_weight_by_column=text_weight_by_column,
+        text_embedding_dim=text_embedding_dim,
+        text_max_features=text_max_features,
     )
-    if structured_width > 0:
-        structured_train = _to_sparse_block(_normalize_block(structured_train) * float(structured_weight))
-        structured_test = _to_sparse_block(_normalize_block(structured_test) * float(structured_weight))
-        train_blocks.append(structured_train)
-        test_blocks.append(structured_test)
-
-    for column_name in available_text_columns:
-        text_train, text_test, width = _build_text_block(
-            syn_eval[column_name],
-            holdout_eval[column_name],
-            embedding_dim=int(text_embedding_dim),
-            max_features=int(text_max_features),
-        )
-        if width == 0:
-            continue
-        weight = float(text_weight_by_column.get(column_name, text_weight_default))
-        text_train = _to_sparse_block(_normalize_block(text_train) * weight)
-        text_test = _to_sparse_block(_normalize_block(text_test) * weight)
-        train_blocks.append(text_train)
-        test_blocks.append(text_test)
-        text_diagnostics[column_name] = {
-            "width": width,
-            "weight": weight,
-        }
-
-    if not train_blocks:
-        raise ValueError("TSTR could not build any structured or text features.")
-
-    x_train = sparse.hstack(train_blocks, format="csr")
-    x_test = sparse.hstack(test_blocks, format="csr")
 
     metrics: dict[str, Any] = {
         "task": task,
@@ -300,12 +371,9 @@ def evaluate_tstr(
         "n_holdout_test": int(len(holdout_eval)),
         "structured_columns": structured_columns,
         "text_columns": available_text_columns,
-        "structured_block": {
-            "width": structured_width,
-            "weight": float(structured_weight),
-        },
-        "text_blocks": text_diagnostics,
-        "total_feature_width": int(x_train.shape[1]),
+        "structured_block": feature_diagnostics["structured_block"],
+        "text_blocks": feature_diagnostics["text_blocks"],
+        "total_feature_width": feature_diagnostics["total_feature_width"],
     }
 
     if task == "classification":
@@ -337,3 +405,69 @@ def evaluate_tstr(
         )
 
     return metrics
+
+
+def evaluate_joint_holdout_discriminator(
+    *,
+    real_train_df: pd.DataFrame,
+    real_holdout_df: pd.DataFrame,
+    synthetic_df: pd.DataFrame,
+    text_columns: list[str],
+    structured_weight: float = 1.0,
+    text_weight_default: float = 0.01,
+    text_weight_by_column: dict[str, float] | None = None,
+    text_embedding_dim: int = 768,
+    text_max_features: int = 50_000,
+    random_state: int = 42,
+) -> dict[str, Any]:
+    text_weight_by_column = text_weight_by_column or {}
+
+    feature_columns = list(real_train_df.columns)
+    available_text_columns = [col for col in text_columns if col in feature_columns]
+    structured_columns = [col for col in feature_columns if col not in set(available_text_columns)]
+
+    real_x, holdout_x_real, real_diagnostics = _build_weighted_feature_matrices(
+        reference_df=real_train_df,
+        train_df=real_train_df[feature_columns],
+        test_df=real_holdout_df[feature_columns],
+        structured_columns=structured_columns,
+        text_columns=available_text_columns,
+        structured_weight=structured_weight,
+        text_weight_default=text_weight_default,
+        text_weight_by_column=text_weight_by_column,
+        text_embedding_dim=text_embedding_dim,
+        text_max_features=text_max_features,
+    )
+    synth_x, holdout_x_synth, synth_diagnostics = _build_weighted_feature_matrices(
+        reference_df=real_train_df,
+        train_df=synthetic_df[feature_columns],
+        test_df=real_holdout_df[feature_columns],
+        structured_columns=structured_columns,
+        text_columns=available_text_columns,
+        structured_weight=structured_weight,
+        text_weight_default=text_weight_default,
+        text_weight_by_column=text_weight_by_column,
+        text_embedding_dim=text_embedding_dim,
+        text_max_features=text_max_features,
+    )
+
+    real_metrics = _holdout_discriminator_metrics(real_x, holdout_x_real, random_state=random_state)
+    synth_metrics = _holdout_discriminator_metrics(synth_x, holdout_x_synth, random_state=random_state)
+
+    return {
+        "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+        "n_real_train": int(len(real_train_df)),
+        "n_real_holdout": int(len(real_holdout_df)),
+        "n_synthetic": int(len(synthetic_df)),
+        "structured_columns": structured_columns,
+        "text_columns": available_text_columns,
+        "structured_block": real_diagnostics["structured_block"],
+        "text_blocks": synth_diagnostics["text_blocks"],
+        "total_feature_width": int(synth_x.shape[1]),
+        "auc_real_vs_holdout": real_metrics["roc_auc"],
+        "accuracy_real_vs_holdout": real_metrics["accuracy"],
+        "auc_synth_vs_holdout": synth_metrics["roc_auc"],
+        "accuracy_synth_vs_holdout": synth_metrics["accuracy"],
+        "auc_drop_real_to_synth": float(synth_metrics["roc_auc"] - real_metrics["roc_auc"]),
+        "accuracy_drop_real_to_synth": float(synth_metrics["accuracy"] - real_metrics["accuracy"]),
+    }
