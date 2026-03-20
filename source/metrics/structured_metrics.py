@@ -6,8 +6,6 @@ from typing import Any
 
 import pandas as pd
 from scipy import sparse
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import (
     accuracy_score,
@@ -17,10 +15,10 @@ from sklearn.metrics import (
     r2_score,
     roc_auc_score,
 )
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, normalize
+from sklearn.preprocessing import normalize
 
 from source.metrics.free_text_metrics import _embed_tfidf_svd_many
+from source.tabular.npgc import NPGC_special
 
 
 @dataclass
@@ -163,6 +161,7 @@ def _to_sparse_block(block: Any) -> sparse.csr_matrix:
 
 
 def _build_structured_block(
+    reference_features: pd.DataFrame,
     train_features: pd.DataFrame,
     test_features: pd.DataFrame,
     structured_columns: list[str],
@@ -172,43 +171,23 @@ def _build_structured_block(
         empty_test = sparse.csr_matrix((len(test_features), 0))
         return empty_train, empty_test, 0
 
-    numeric_columns = [
-        col for col in structured_columns if pd.api.types.is_numeric_dtype(train_features[col])
-    ]
-    categorical_columns = [col for col in structured_columns if col not in numeric_columns]
+    reference_block = reference_features[structured_columns].copy()
+    for column_name in structured_columns:
+        if reference_block[column_name].isna().all():
+            reference_block[column_name] = 0
+        elif pd.api.types.is_numeric_dtype(reference_block[column_name]):
+            fill_value = float(reference_block[column_name].median())
+            reference_block[column_name] = reference_block[column_name].fillna(fill_value)
+        else:
+            mode = reference_block[column_name].mode(dropna=True)
+            fill_value = "" if mode.empty else mode.iloc[0]
+            reference_block[column_name] = reference_block[column_name].fillna(fill_value)
 
-    transformers: list[tuple[str, Any, list[str]]] = []
-    if numeric_columns:
-        transformers.append(
-            (
-                "numeric",
-                Pipeline(
-                    steps=[
-                        ("imputer", SimpleImputer(strategy="median")),
-                        ("scaler", StandardScaler()),
-                    ]
-                ),
-                numeric_columns,
-            )
-        )
-    if categorical_columns:
-        transformers.append(
-            (
-                "categorical",
-                Pipeline(
-                    steps=[
-                        ("imputer", SimpleImputer(strategy="most_frequent")),
-                        ("encoder", OneHotEncoder(handle_unknown="ignore")),
-                    ]
-                ),
-                categorical_columns,
-            )
-        )
-
-    transformer = ColumnTransformer(transformers=transformers)
-    train_block = transformer.fit_transform(train_features[structured_columns])
-    test_block = transformer.transform(test_features[structured_columns])
-    return train_block, test_block, int(train_block.shape[1])
+    synthesizer = NPGC_special(epsilon=None)
+    synthesizer.fit(reference_block)
+    train_block = synthesizer.transform(train_features[structured_columns]).to_numpy(dtype=float)
+    test_block = synthesizer.transform(test_features[structured_columns]).to_numpy(dtype=float)
+    return train_block, test_block, int(len(structured_columns))
 
 
 def _build_text_block(
@@ -278,6 +257,7 @@ def evaluate_tstr(
     text_diagnostics: dict[str, dict[str, float | int]] = {}
 
     structured_train, structured_test, structured_width = _build_structured_block(
+        train_df,
         syn_eval,
         holdout_eval,
         structured_columns,
