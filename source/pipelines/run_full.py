@@ -116,6 +116,30 @@ def _load_feature_weights(path: Path | None) -> dict[str, float] | None:
     return parsed
 
 
+def _clean_dataset_name(value: Any | None) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _resolve_runtime_paths(tabular_cfg: dict, args: argparse.Namespace) -> tuple[str, Path, Path]:
+    configured_dataset_name = _clean_dataset_name(tabular_cfg.get("dataset_name"))
+    input_template = str(tabular_cfg.get("input_csv", "data/raw/{dataset_name}/input.csv"))
+    output_template = str(tabular_cfg.get("output_csv", "data/raw/{dataset_name}/output.csv"))
+
+    dataset_name = _clean_dataset_name(args.dataset_name) or configured_dataset_name
+    if not dataset_name and args.input_csv is not None:
+        dataset_name = _dataset_name_from_path(args.input_csv)
+    if not dataset_name:
+        raise ValueError(
+            "Please set dataset_name in configs/tabular.yml, pass --dataset-name, or provide --input-csv."
+        )
+
+    input_csv = args.input_csv or Path(input_template.format(dataset_name=dataset_name))
+    output_csv = args.output_csv or Path(output_template.format(dataset_name=dataset_name))
+    return dataset_name, input_csv, output_csv
+
+
 def _dataset_name_from_path(input_csv: Path) -> str:
     sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", input_csv.stem).strip("-")
     return sanitized or "dataset"
@@ -323,10 +347,10 @@ def main() -> None:
     llm_cfg = _merge_with_cli(_read_yaml(args.llm_config), args)
     prompt_cfg = _read_yaml(args.prompts_config)
 
-    input_csv = args.input_csv or Path(tabular_cfg["input_csv"])
-    output_csv = args.output_csv or Path(tabular_cfg["output_csv"])
+    dataset_name, input_csv, output_csv = _resolve_runtime_paths(tabular_cfg, args)
 
     print("\nResolved runtime settings:")
+    print(f"- dataset_name: {dataset_name}")
     print(f"- input_csv: {input_csv}")
     print(f"- output_csv: {output_csv}")
     print(f"- feature_weights_json: {args.feature_weights_json or '(none)'}")
@@ -365,7 +389,6 @@ def main() -> None:
     print(f"Loaded dataframe with shape: {df.shape}")
 
     configured_text_column = tabular_cfg.get("text_column")
-    dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
     text_columns, feature_weights = _resolve_metadata(
         df,
         dataset_name=dataset_name,

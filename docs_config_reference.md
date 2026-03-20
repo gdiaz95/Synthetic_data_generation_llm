@@ -6,16 +6,31 @@ This project uses three YAML configuration files in `configs/` for the main gene
 
 Controls **tabular synthetic data generation** (structured columns).
 
+### `dataset_name`
+- **What it is:** The single dataset switch you change for each run.
+- **Used by:** `run_full.py` to resolve the default input CSV path, output CSV path, and metadata JSON path.
+- **Default path pattern:** `data/raw/{dataset_name}/...`
+- **Current value:** `Spotify`
+
 ### `input_csv`
-- **What it is:** Path to the source CSV used as the real dataset.
+- **What it is:** Template for the source CSV used as the real dataset.
 - **Used by:** `run_full.py` before tabular/LLM stages begin.
-- **Expected content:** Must include a `job_description` column, because the pipeline synthesizes structured fields separately and later regenerates free text.
-- **Current value:** `data/small/adult_with_job_description.csv`
+- **Supports placeholders:** `{dataset_name}`
+- **Current value:** `data/raw/{dataset_name}/input.csv`
+- **Resolved example:** `data/raw/Spotify/input.csv`
 
 ### `output_csv`
-- **What it is:** Path where the final synthetic dataset is written.
+- **What it is:** Template for the final synthetic dataset path.
 - **Used by:** End of `run_full.py`.
-- **Current value:** `data/processed/adults_synthetic_gemini_small.csv`
+- **Supports placeholders:** `{dataset_name}`
+- **Current value:** `data/raw/{dataset_name}/output.csv`
+- **Resolved example:** `data/raw/Spotify/output.csv`
+- **Note:** The pipeline still appends the model name before `.csv`, so the final file becomes something like `data/raw/Spotify/output_gemini-2.5-flash.csv`.
+
+### `json_path`
+- **What it is:** Template for metadata discovery/storage.
+- **Supports placeholders:** `{dataset_name}`
+- **Current value:** `.metadata/{dataset_name}/metadata.json`
 
 ### `knn_k`
 - **What it is:** Number of nearest real neighbors to retrieve for each synthetic tabular row in latent space.
@@ -35,7 +50,6 @@ Controls **tabular synthetic data generation** (structured columns).
 - **Used by:** `NPGC_special` initialization.
 - **Effect:** `true` helps prevent unrealistic out-of-range values in synthetic numeric columns.
 - **Current value:** `true`
-
 ---
 
 ## 2) `configs/llm_generation.yml`
