@@ -137,6 +137,13 @@ def _resolve_json_metadata_path(dataset_name: str, configured_json_path: Any | N
     return Path(resolved)
 
 
+def _resolve_config_path(configured_path: Any, *, dataset_name: str | None) -> Path:
+    resolved = str(configured_path).strip()
+    if dataset_name is not None:
+        resolved = resolved.format(dataset_name=dataset_name)
+    return Path(resolved)
+
+
 def _load_metadata(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -403,8 +410,15 @@ def main() -> None:
     llm_cfg = _merge_with_cli(_read_yaml(args.llm_config), args)
     prompt_cfg = _read_yaml(args.prompts_config)
 
-    input_csv = args.input_csv or Path(tabular_cfg["input_csv"])
-    output_csv = args.output_csv or Path(tabular_cfg["output_csv"])
+    configured_dataset_name = tabular_cfg.get("dataset_name")
+    if isinstance(configured_dataset_name, str):
+        configured_dataset_name = configured_dataset_name.strip() or None
+    else:
+        configured_dataset_name = None
+    runtime_dataset_name = args.dataset_name or configured_dataset_name
+
+    input_csv = args.input_csv or _resolve_config_path(tabular_cfg["input_csv"], dataset_name=runtime_dataset_name)
+    output_csv = args.output_csv or _resolve_config_path(tabular_cfg["output_csv"], dataset_name=runtime_dataset_name)
 
     print("\nResolved runtime settings:")
     print(f"- input_csv: {input_csv}")
@@ -446,7 +460,7 @@ def main() -> None:
     print(f"Loaded dataframe with shape: {df.shape}")
 
     configured_text_column = tabular_cfg.get("text_column")
-    dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
+    dataset_name = runtime_dataset_name or _dataset_name_from_path(input_csv)
     text_columns, feature_weights, metadata_max_words_generation = _resolve_metadata(
         df,
         dataset_name=dataset_name,
