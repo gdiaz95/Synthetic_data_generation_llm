@@ -3,10 +3,10 @@ dataset_name: adult_with_three
 model: gemini-3.1-flash-lite-preview
 
 # Real/original dataset path.
-real_data_path: data/raw/adult_with_three.csv
+real_data_path: data/raw/{dataset_name}.csv
 
 # Synthetic dataset path.
-synthetic_data_path: data/processed/adults_synthetic_three_gemini-3.1-flash-lite-preview.csv
+synthetic_data_path: data/processed/{dataset_name}_{model}.csv
 
 # Output report path for structured-column metrics.
 report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
@@ -35,7 +35,7 @@ text_mmd_batch_size: 4096
 # for each free-text column and for full rows, then stores the resulting accuracy
 # statistics in the report JSON.
 llm_judge:
-  enabled: false
+  enabled: true
   # model/provider default to configs/llm_generation.yml when omitted.
   max_examples_per_class: 128
   batch_size: 8
