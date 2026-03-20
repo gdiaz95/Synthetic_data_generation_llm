@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import sys
 from dataclasses import asdict, dataclass
 from types import SimpleNamespace
 from typing import Any
@@ -159,13 +160,29 @@ def _run_prompts(
     prompts: list[str],
     *,
     batch_size: int,
+    progress_label: str | None = None,
 ) -> list[str]:
+    if not prompts:
+        return []
+
     generation_config = _default_generation_config(batch_size=batch_size)
     responses: list[str] = []
-    for start in range(0, len(prompts), batch_size):
+    total_batches = math.ceil(len(prompts) / batch_size)
+    for batch_index, start in enumerate(range(0, len(prompts), batch_size), start=1):
         batch_prompts = prompts[start : start + batch_size]
         responses.extend(llm_server.generate_batch(batch_prompts, config=generation_config))
+        if progress_label:
+            _print_progress_bar(progress_label, batch_index, total_batches)
     return responses
+
+
+def _print_progress_bar(label: str, current: int, total: int) -> None:
+    width = 24
+    filled = width if total <= 0 else int(width * current / total)
+    bar = "=" * filled + "-" * max(0, width - filled)
+    end = "\n" if current >= total else "\r"
+    sys.stdout.write(f"[llm-judge] {label}: |{bar}| {current}/{total}{end}")
+    sys.stdout.flush()
 
 
 def _summarize_predictions(
@@ -273,7 +290,12 @@ def evaluate_llm_judge(
                 )
                 prompts = [_judge_prompt_for_text(column_name, value) for value, _ in sampled]
                 truth_labels = [label for _, label in sampled]
-                raw_predictions = _run_prompts(server, prompts, batch_size=batch_size)
+                raw_predictions = _run_prompts(
+                    server,
+                    prompts,
+                    batch_size=batch_size,
+                    progress_label=f"{column_name}",
+                )
                 predicted_labels = [_extract_label(prediction) for prediction in raw_predictions]
                 free_text_results[column_name] = _summarize_predictions(
                     task="free_text_column",
@@ -296,7 +318,12 @@ def evaluate_llm_judge(
         )
         row_prompts = [_judge_prompt_for_row(payload) for payload, _ in sampled_rows]
         row_truth_labels = [label for _, label in sampled_rows]
-        row_raw_predictions = _run_prompts(server, row_prompts, batch_size=batch_size)
+        row_raw_predictions = _run_prompts(
+            server,
+            row_prompts,
+            batch_size=batch_size,
+            progress_label="whole_row",
+        )
         row_predicted_labels = [_extract_label(prediction) for prediction in row_raw_predictions]
         whole_row_result = _summarize_predictions(
             task="whole_row",
