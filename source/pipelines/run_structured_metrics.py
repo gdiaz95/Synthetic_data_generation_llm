@@ -16,7 +16,11 @@ import yaml
 from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
 
-from source.metrics.structured_metrics import evaluate_structured_qa_metrics, evaluate_tstr
+from source.metrics.structured_metrics import (
+    evaluate_joint_holdout_discriminator,
+    evaluate_structured_qa_metrics,
+    evaluate_tstr,
+)
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
 from source.metrics.llm_judge import evaluate_llm_judge
 
@@ -253,6 +257,28 @@ def main() -> None:
                 free_text_distribution[column_name] = {"error": str(exc)}
                 print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
 
+    joint_holdout_discriminator: dict[str, Any] | None = None
+    if structured_columns or text_columns:
+        print("Evaluating joint structured + free-text holdout discriminator...")
+        try:
+            joint_holdout_discriminator = evaluate_joint_holdout_discriminator(
+                real_train_df=real_train.reset_index(drop=True),
+                real_holdout_df=real_holdout.reset_index(drop=True),
+                synthetic_df=synthetic_df.reset_index(drop=True),
+                text_columns=text_columns,
+                structured_weight=tstr_structured_weight,
+                text_weight_default=tstr_text_weight_default,
+                text_weight_by_column={
+                    str(key): float(value) for key, value in tstr_text_weight_by_column.items()
+                },
+                text_embedding_dim=text_embedding_dim,
+                text_max_features=text_max_features,
+                random_state=random_seed,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            joint_holdout_discriminator = {"error": str(exc)}
+            print(f"Warning: unable to compute joint holdout discriminator metrics: {exc}")
+
     tstr_data: dict[str, Any] | None = None
     if target_column:
         print(f"Evaluating TSTR metrics using target column: {target_column}")
@@ -318,6 +344,7 @@ def main() -> None:
         "metrics_qa": metrics,
         "free_text_distribution": free_text_distribution,
         "quality_report": quality_report_data,
+        "joint_holdout_discriminator": joint_holdout_discriminator,
         "tstr": tstr_data,
         "llm_judge": llm_judge_data,
     }

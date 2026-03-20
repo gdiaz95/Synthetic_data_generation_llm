@@ -63,6 +63,7 @@ def _rbf_mmd_biased(x: np.ndarray, y: np.ndarray, gamma: float | None = None) ->
     return float(kxx.mean() + kyy.mean() - 2.0 * kxy.mean())
 
 
+
 def _mean_rbf_kernel_blockwise(
     x: np.ndarray,
     y: np.ndarray,
@@ -106,6 +107,7 @@ def _mean_rbf_kernel_blockwise(
     if count == 0:
         return float("nan")
     return float(total / count)
+
 
 
 def _rbf_mmd_biased_batched(
@@ -153,6 +155,7 @@ def _rbf_mmd_biased_batched(
     return float(mean_kxx + mean_kyy - 2.0 * mean_kxy)
 
 
+
 def _frechet_distance(
     mu_real: np.ndarray,
     cov_real: np.ndarray,
@@ -170,6 +173,7 @@ def _frechet_distance(
 
     mean_diff = mu_real - mu_syn
     return float(mean_diff @ mean_diff + np.trace(cov_real + cov_syn - 2.0 * covmean))
+
 
 
 def _embed_tfidf_svd_many(
@@ -209,6 +213,7 @@ def _embed_tfidf_svd_many(
     return split_embeddings, latent_dim
 
 
+
 def _pair_metrics(
     x: np.ndarray,
     y: np.ndarray,
@@ -238,10 +243,157 @@ def _pair_metrics(
     return float(frechet), float(mmd)
 
 
+
+def _build_structured_feature_matrices(
+    real_train_df: pd.DataFrame,
+    real_holdout_df: pd.DataFrame,
+    synthetic_df: pd.DataFrame,
+    *,
+    structured_columns: list[str],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if not structured_columns:
+        empty_train = np.zeros((len(real_train_df), 0), dtype=np.float64)
+        empty_holdout = np.zeros((len(real_holdout_df), 0), dtype=np.float64)
+        empty_syn = np.zeros((len(synthetic_df), 0), dtype=np.float64)
+        return empty_train, empty_holdout, empty_syn
+
+    missing_real_train = [col for col in structured_columns if col not in real_train_df.columns]
+    missing_real_holdout = [col for col in structured_columns if col not in real_holdout_df.columns]
+    missing_syn = [col for col in structured_columns if col not in synthetic_df.columns]
+    if missing_real_train or missing_real_holdout or missing_syn:
+        raise ValueError(
+            "Structured columns missing in one or more dataframes. "
+            f"train_missing={missing_real_train}, holdout_missing={missing_real_holdout}, synthetic_missing={missing_syn}"
+        )
+
+    combined = pd.concat(
+        [
+            real_train_df[structured_columns],
+            real_holdout_df[structured_columns],
+            synthetic_df[structured_columns],
+        ],
+        axis=0,
+        ignore_index=True,
+    )
+    lengths = [len(real_train_df), len(real_holdout_df), len(synthetic_df)]
+
+    blocks: list[np.ndarray] = []
+    for column_name in structured_columns:
+        series = combined[column_name]
+        if is_numeric_dtype(series) or series.dropna().map(lambda value: isinstance(value, bool)).all():
+            numeric = pd.to_numeric(series, errors="coerce").fillna(0.0).astype(np.float64)
+            blocks.append(numeric.to_numpy(dtype=np.float64).reshape(-1, 1))
+            continue
+
+        categorical = pd.get_dummies(
+            series.fillna("__missing__").astype(str),
+            prefix=column_name,
+            dtype=np.float64,
+        )
+        blocks.append(categorical.to_numpy(dtype=np.float64, copy=False))
+
+    feature_matrix = np.hstack(blocks) if blocks else np.zeros((len(combined), 0), dtype=np.float64)
+
+    matrices: list[np.ndarray] = []
+    offset = 0
+    for length in lengths:
+        matrices.append(feature_matrix[offset : offset + length])
+        offset += length
+
+    return tuple(matrices)
+
+
+
+def _build_text_feature_matrices(
+    real_train_df: pd.DataFrame,
+    real_holdout_df: pd.DataFrame,
+    synthetic_df: pd.DataFrame,
+    *,
+    text_columns: list[str],
+    embedding_dim: int,
+    max_features: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if not text_columns:
+        empty_train = np.zeros((len(real_train_df), 0), dtype=np.float64)
+        empty_holdout = np.zeros((len(real_holdout_df), 0), dtype=np.float64)
+        empty_syn = np.zeros((len(synthetic_df), 0), dtype=np.float64)
+        return empty_train, empty_holdout, empty_syn
+
+    train_blocks: list[np.ndarray] = []
+    holdout_blocks: list[np.ndarray] = []
+    synthetic_blocks: list[np.ndarray] = []
+
+    for column_name in text_columns:
+        if column_name not in real_train_df.columns:
+            raise ValueError(f"Free-text column '{column_name}' is missing in real train data.")
+        if column_name not in real_holdout_df.columns:
+            raise ValueError(f"Free-text column '{column_name}' is missing in real holdout data.")
+        if column_name not in synthetic_df.columns:
+            raise ValueError(f"Free-text column '{column_name}' is missing in synthetic data.")
+
+        embedded_sets, _ = _embed_tfidf_svd_many(
+            [
+                _clean_text_series_preserve_rows(real_train_df[column_name]),
+                _clean_text_series_preserve_rows(real_holdout_df[column_name]),
+                _clean_text_series_preserve_rows(synthetic_df[column_name]),
+            ],
+            embedding_dim=embedding_dim,
+            max_features=max_features,
+        )
+        train_emb, holdout_emb, synthetic_emb = embedded_sets
+        train_blocks.append(_row_normalize(train_emb))
+        holdout_blocks.append(_row_normalize(holdout_emb))
+        synthetic_blocks.append(_row_normalize(synthetic_emb))
+
+    train_matrix = np.hstack(train_blocks) if train_blocks else np.zeros((len(real_train_df), 0), dtype=np.float64)
+    holdout_matrix = np.hstack(holdout_blocks) if holdout_blocks else np.zeros((len(real_holdout_df), 0), dtype=np.float64)
+    synthetic_matrix = np.hstack(synthetic_blocks) if synthetic_blocks else np.zeros((len(synthetic_df), 0), dtype=np.float64)
+
+    return _row_normalize(train_matrix), _row_normalize(holdout_matrix), _row_normalize(synthetic_matrix)
+
+
+
+def _holdout_discriminator_metrics(
+    reference_x: np.ndarray,
+    holdout_x: np.ndarray,
+    *,
+    random_state: int,
+) -> tuple[float, float]:
+    if reference_x.shape[1] != holdout_x.shape[1]:
+        raise ValueError("Reference and holdout feature matrices must have the same width.")
+    if len(reference_x) < 2 or len(holdout_x) < 2:
+        raise ValueError("Need at least two rows from each class for discriminator evaluation.")
+
+    x = np.vstack([reference_x, holdout_x])
+    y = np.concatenate(
+        [
+            np.zeros(len(reference_x), dtype=np.int64),
+            np.ones(len(holdout_x), dtype=np.int64),
+        ]
+    )
+
+    x_train, x_test, y_train, y_test = train_test_split(
+        x,
+        y,
+        test_size=0.25,
+        random_state=random_state,
+        stratify=y,
+    )
+
+    model = LogisticRegression(max_iter=1000, random_state=random_state)
+    model.fit(x_train, y_train)
+    probabilities = model.predict_proba(x_test)[:, 1]
+    predictions = model.predict(x_test)
+
+    return float(roc_auc_score(y_test, probabilities)), float(accuracy_score(y_test, predictions))
+
+
+
 def _safe_ratio(numerator: float, denominator: float) -> float:
     if not np.isfinite(numerator) or not np.isfinite(denominator) or abs(denominator) < 1e-12:
         return float("nan")
     return float(numerator / denominator)
+
 
 
 def evaluate_first_free_text_distribution(
@@ -327,3 +479,4 @@ def evaluate_first_free_text_distribution(
             mmd_ratio_to_holdout=_safe_ratio(mmd_train_syn, mmd_train_holdout),
         )
     )
+
