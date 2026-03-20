@@ -78,6 +78,12 @@ def parse_args() -> argparse.Namespace:
         description="Run structured-column QA metrics using real and synthetic datasets."
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--dataset-name",
+        type=str,
+        default=None,
+        help="Dataset identifier to override dataset_name from metrics.yml.",
+    )
     return parser.parse_args()
 
 
@@ -86,7 +92,7 @@ def main() -> None:
     args = parse_args()
     cfg = _read_yaml(args.config)
 
-    dataset_name = cfg.get("dataset_name")
+    dataset_name = args.dataset_name or cfg.get("dataset_name")
     model = cfg.get("model")
     real_template = cfg.get("real_data_path")
     synthetic_template = cfg.get("synthetic_data_path")
