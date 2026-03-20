@@ -1,6 +1,7 @@
-input_csv: data/raw/Spotify.csv
-output_csv: data/processed/Spotify.csv
-json_path: null
+dataset_name: Spotify
+input_csv: data/raw/{dataset_name}/input.csv
+output_csv: data/raw/{dataset_name}/output.csv
+json_path: .metadata/{dataset_name}/metadata.json
 
 knn_k: 5
 epsilon: 1.0
