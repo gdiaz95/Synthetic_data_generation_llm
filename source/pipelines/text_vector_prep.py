@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import math
 import re
 from typing import Any
 
@@ -43,30 +42,8 @@ def _hash_embedding(tokens: list[str], dim: int) -> np.ndarray:
     return vec
 
 
-def _scalar_features(text: str, tokens: list[str]) -> np.ndarray:
-    char_count = float(len(text))
-    word_count = float(len(tokens))
-    unique_ratio = float(len(set(tokens)) / len(tokens)) if tokens else 0.0
-    punctuation_ratio = float(sum(1 for ch in text if not ch.isalnum() and not ch.isspace()) / max(1, len(text)))
-    avg_token_len = float(sum(len(tok) for tok in tokens) / len(tokens)) if tokens else 0.0
-    return np.array(
-        [
-            math.log1p(char_count),
-            math.log1p(word_count),
-            unique_ratio,
-            punctuation_ratio,
-            avg_token_len,
-        ],
-        dtype=np.float64,
-    )
-
-
 def prepare_text_vector_features(series: pd.Series, *, hash_dim: int = 8) -> pd.DataFrame:
-    """Build a lightweight hybrid text vector block: hash embedding + scalar stats.
-
-    This is intentionally simple and fast for pipeline staging; distance integration
-    can consume this block in a later iteration.
-    """
+    """Build a row-normalized hashed text vector block with exactly ``hash_dim`` features."""
     if hash_dim <= 0:
         raise ValueError("hash_dim must be >= 1.")
 
@@ -75,23 +52,11 @@ def prepare_text_vector_features(series: pd.Series, *, hash_dim: int = 8) -> pd.
         text = _safe_text(value)
         tokens = _tokenize(text)
         hashed = _hash_embedding(tokens, hash_dim)
-        stats = _scalar_features(text, tokens)
-        rows.append(np.concatenate([hashed, stats]))
+        rows.append(hashed)
 
     if not rows:
         return pd.DataFrame()
 
     matrix = np.vstack(rows)
-    means = matrix.mean(axis=0)
-    stds = matrix.std(axis=0)
-    stds[stds == 0.0] = 1.0
-    standardized = (matrix - means) / stds
-
-    columns = [f"hash_{i}" for i in range(hash_dim)] + [
-        "stat_log_chars",
-        "stat_log_words",
-        "stat_lexical_diversity",
-        "stat_punctuation_ratio",
-        "stat_avg_token_len",
-    ]
-    return pd.DataFrame(standardized, index=series.index, columns=columns)
+    columns = [f"hash_{i}" for i in range(hash_dim)]
+    return pd.DataFrame(matrix, index=series.index, columns=columns)
