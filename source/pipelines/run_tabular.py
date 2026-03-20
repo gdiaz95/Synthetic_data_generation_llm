@@ -8,6 +8,12 @@ import pandas as pd
 from source.tabular.npgc import NPGC_special
 
 
+def _row_normalize_dense(matrix: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms[norms == 0.0] = 1.0
+    return matrix / norms
+
+
 @dataclass
 class TabularGenerationResult:
     synthetic_data: pd.DataFrame
@@ -33,8 +39,8 @@ def knn_retrieval_step1(
         if not cols:
             raise ValueError("No overlapping columns between real_z and syn_z.")
 
-    Xr = real_z[cols].to_numpy(dtype=np.float64, copy=False)
-    Xs = syn_z[cols].to_numpy(dtype=np.float64, copy=False)
+    Xr = _row_normalize_dense(real_z[cols].to_numpy(dtype=np.float64, copy=False))
+    Xs = _row_normalize_dense(syn_z[cols].to_numpy(dtype=np.float64, copy=False))
 
     if feature_weights:
         weights = np.array(
@@ -110,8 +116,8 @@ def knn_retrieval_with_text_blocks(
         if not cols:
             raise ValueError("No overlapping columns between real_z and syn_z.")
 
-    Xr_tab = real_z[cols].to_numpy(dtype=np.float64, copy=False)
-    Xs_tab = syn_z[cols].to_numpy(dtype=np.float64, copy=False)
+    Xr_tab = _row_normalize_dense(real_z[cols].to_numpy(dtype=np.float64, copy=False))
+    Xs_tab = _row_normalize_dense(syn_z[cols].to_numpy(dtype=np.float64, copy=False))
 
     if feature_weights:
         weights = np.array([float(feature_weights.get(col, 1.0)) for col in cols], dtype=np.float64)
@@ -141,8 +147,8 @@ def knn_retrieval_with_text_blocks(
         block_cols = list(real_block.columns.intersection(syn_block.columns))
         if not block_cols:
             continue
-        Xr = real_block[block_cols].to_numpy(dtype=np.float64, copy=False)
-        Xs = syn_block[block_cols].to_numpy(dtype=np.float64, copy=False)
+        Xr = _row_normalize_dense(real_block[block_cols].to_numpy(dtype=np.float64, copy=False))
+        Xs = _row_normalize_dense(syn_block[block_cols].to_numpy(dtype=np.float64, copy=False))
         if Xr.shape[0] != n or Xs.shape[0] != m:
             raise ValueError("Text block row counts must match tabular real/synthetic row counts.")
         r_norm2 = np.sum(Xr * Xr, axis=1)

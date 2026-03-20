@@ -140,9 +140,9 @@ Controls **free-text generation** and model backend behavior.
 - **Current value:** `1`
 
 ### `text_vector_hash_dim`
-- **What it is:** Hash-embedding width used for lightweight text-vector preparation after each generated free-text column.
+- **What it is:** Width of the row-normalized hashed text vector prepared after each generated free-text column.
 - **Used by:** `prepare_text_vector_features(...)` in `run_full.py`.
-- **Effect:** Higher values keep more token-bucket detail for future distance integration; lower values are faster and smaller.
+- **Effect:** The resulting feature block has exactly this many columns; higher values keep more token-bucket detail for future distance integration, while lower values are faster and smaller.
 - **Current value:** `8`
 
 ---
@@ -227,7 +227,7 @@ Controls **post-generation evaluation** for structured columns, free-text column
 - **Recommendation:** Prefer storing this in metadata so the dataset carries its own target declaration.
 
 ### `tstr_structured_weight`
-- **What it is:** Multiplier applied to the row-normalized structured feature block before model training.
+- **What it is:** Multiplier applied to the row-normalized structured feature block before model training or distance blending.
 
 ### `tstr_text_weight_default`
 - **What it is:** Default multiplier applied to each row-normalized text block.
