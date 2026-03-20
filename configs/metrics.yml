@@ -3,10 +3,10 @@ dataset_name: adult_with_three
 model: gemini-3.1-flash-lite-preview
 
 # Real/original dataset path.
-real_data_path: data/raw/adult_with_three.csv
+real_data_path: data/raw/{dataset_name}.csv
 
 # Synthetic dataset path.
-synthetic_data_path: data/processed/adults_synthetic_three_gemini-3.1-flash-lite-preview.csv
+synthetic_data_path: data/processed/{dataset_name}_{model}.csv
 
 # Output report path for structured-column metrics.
 report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
@@ -17,6 +17,9 @@ free_text_columns: []
 
 # Optional metadata path template. Defaults to .metadata/{dataset_name}/metadata.json
 metadata_json_path: .metadata/{dataset_name}/metadata.json
+
+# Optional fallback target column for TSTR when metadata does not define one.
+target_column:
 
 # Holdout split parameters for real data.
 holdout_fraction: 0.2
@@ -29,3 +32,19 @@ random_state: 42
 text_embedding_dim: 768
 text_max_features: 200000
 text_mmd_batch_size: 4096
+
+# Simple TSTR block weighting. Each block is row-normalized before weighting.
+tstr_structured_weight: 1.0
+tstr_text_weight_default: 0.01
+tstr_text_weight_by_column: {}
+
+# Optional LLM-as-a-judge metrics.
+# When enabled, the pipeline classifies balanced real-holdout vs synthetic examples
+# for each free-text column and for full rows, then stores the resulting accuracy
+# statistics in the report JSON.
+llm_judge:
+  enabled: true
+  # model/provider default to configs/llm_generation.yml when omitted.
+  max_examples_per_class: 128
+  batch_size: 8
+  random_state: 42

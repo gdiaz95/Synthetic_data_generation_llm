@@ -45,10 +45,6 @@ batch_log_every: 0
 # When true, rows are split across N shards and each shard calls the API in parallel.
 parallel_api_calls: true
 api_parallel_shards: 64
-empty_response_retry_attempts: 3
-empty_response_retry_sleep_sec: 1.0
-rerun_failed_rows: true
-failed_row_retry_passes: 1
 
 # Optional: hash-embedding size for lightweight text-vector preparation.
 text_vector_hash_dim: 2000
@@ -61,3 +57,4 @@ distance_alpha: 1.0
 distance_beta_default: 0.01
 # Optional per-column overrides, e.g. {job_summary: 0.3}
 distance_beta_by_column: {}
+

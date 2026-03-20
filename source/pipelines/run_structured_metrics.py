@@ -13,14 +13,21 @@ if str(root_path) not in sys.path:
 
 import pandas as pd
 import yaml
+from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
 
-from source.metrics.structured_metrics import evaluate_structured_qa_metrics
+from source.metrics.structured_metrics import (
+    evaluate_joint_holdout_discriminator,
+    evaluate_structured_qa_metrics,
+    evaluate_tstr,
+)
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
+from source.metrics.llm_judge import evaluate_llm_judge
 
 
 DEFAULT_CONFIG = Path("configs/metrics.yml")
 DEFAULT_METADATA_ROOT = Path(".metadata")
+DEFAULT_LLM_CONFIG = Path("configs/llm_generation.yml")
 
 
 def _read_yaml(path: Path) -> dict:
@@ -75,14 +82,21 @@ def parse_args() -> argparse.Namespace:
         description="Run structured-column QA metrics using real and synthetic datasets."
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--dataset-name",
+        type=str,
+        default=None,
+        help="Dataset identifier to override dataset_name from metrics.yml.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
+    load_dotenv()
     args = parse_args()
     cfg = _read_yaml(args.config)
 
-    dataset_name = cfg.get("dataset_name")
+    dataset_name = args.dataset_name or cfg.get("dataset_name")
     model = cfg.get("model")
     real_template = cfg.get("real_data_path")
     synthetic_template = cfg.get("synthetic_data_path")
@@ -105,6 +119,16 @@ def main() -> None:
     text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
     text_max_features = int(cfg.get("text_max_features", 200_000))
     text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 4096))
+    tstr_structured_weight = float(cfg.get("tstr_structured_weight", 1.0))
+    tstr_text_weight_default = float(cfg.get("tstr_text_weight_default", 0.01))
+    tstr_text_weight_by_column = cfg.get("tstr_text_weight_by_column", {})
+    if not isinstance(tstr_text_weight_by_column, dict):
+        raise ValueError("tstr_text_weight_by_column must be a mapping in metrics.yml.")
+    judge_cfg = cfg.get("llm_judge", {})
+    if judge_cfg is None:
+        judge_cfg = {}
+    if not isinstance(judge_cfg, dict):
+        raise ValueError("llm_judge must be a mapping in metrics.yml when provided.")
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -145,9 +169,13 @@ def main() -> None:
         if not isinstance(metadata_text_columns, list):
             raise ValueError("'free_text_columns' in metadata.json must be a list.")
         text_columns = [str(col) for col in metadata_text_columns]
+        metadata_target_column = metadata.get("target_column")
+        target_column = str(metadata_target_column).strip() if metadata_target_column else None
         print(f"Using metadata from: {metadata_path}")
     else:
         text_columns = [str(col) for col in config_text_columns]
+        cfg_target_column = cfg.get("target_column")
+        target_column = str(cfg_target_column).strip() if cfg_target_column else None
         print(f"Metadata JSON not found at {metadata_path}; using free_text_columns from config.")
 
     real_path = _resolve_path(real_template, dataset_name=dataset_name, model=model)
@@ -161,6 +189,10 @@ def main() -> None:
 
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
+
+    if target_column and target_column not in real_df.columns:
+        print(f"Configured target_column '{target_column}' does not exist in real data; skipping TSTR.")
+        target_column = None
 
     structured_columns = [col for col in real_df.columns if col not in set(text_columns)]
     if not structured_columns:
@@ -225,6 +257,81 @@ def main() -> None:
                 free_text_distribution[column_name] = {"error": str(exc)}
                 print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
 
+    joint_holdout_discriminator: dict[str, Any] | None = None
+    if structured_columns or text_columns:
+        print("Evaluating joint structured + free-text holdout discriminator...")
+        try:
+            joint_holdout_discriminator = evaluate_joint_holdout_discriminator(
+                real_train_df=real_train.reset_index(drop=True),
+                real_holdout_df=real_holdout.reset_index(drop=True),
+                synthetic_df=synthetic_df.reset_index(drop=True),
+                text_columns=text_columns,
+                structured_weight=tstr_structured_weight,
+                text_weight_default=tstr_text_weight_default,
+                text_weight_by_column={
+                    str(key): float(value) for key, value in tstr_text_weight_by_column.items()
+                },
+                text_embedding_dim=text_embedding_dim,
+                text_max_features=text_max_features,
+                random_state=random_seed,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            joint_holdout_discriminator = {"error": str(exc)}
+            print(f"Warning: unable to compute joint holdout discriminator metrics: {exc}")
+
+    tstr_data: dict[str, Any] | None = None
+    if target_column:
+        print(f"Evaluating TSTR metrics using target column: {target_column}")
+        try:
+            tstr_data = evaluate_tstr(
+                train_df=real_train,
+                synthetic_df=synthetic_df,
+                holdout_df=real_holdout,
+                target_column=target_column,
+                text_columns=text_columns,
+                structured_weight=tstr_structured_weight,
+                text_weight_default=tstr_text_weight_default,
+                text_weight_by_column={
+                    str(key): float(value) for key, value in tstr_text_weight_by_column.items()
+                },
+                text_embedding_dim=text_embedding_dim,
+                text_max_features=text_max_features,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            tstr_data = {"error": str(exc), "target_column": target_column}
+            print(f"Warning: unable to compute TSTR metrics: {exc}")
+    else:
+        tstr_data = {"skipped": True, "reason": "No valid target_column was configured."}
+        print("Skipping TSTR metrics because no valid target_column was configured.")
+
+    llm_judge_data: dict[str, Any] | None = None
+    judge_enabled = bool(judge_cfg.get("enabled", False))
+    if judge_enabled:
+        if "model" not in judge_cfg or "provider" not in judge_cfg:
+            fallback_judge_cfg = _read_yaml(DEFAULT_LLM_CONFIG) if DEFAULT_LLM_CONFIG.exists() else {}
+            judge_cfg = {**fallback_judge_cfg, **judge_cfg}
+
+        print("Evaluating LLM-as-a-judge metrics on free-text columns and whole rows...")
+        try:
+            llm_judge_data = evaluate_llm_judge(
+                real_holdout_df=real_holdout.reset_index(drop=True),
+                synthetic_df=synthetic_df.reset_index(drop=True),
+                free_text_columns=text_columns,
+                judge_cfg=judge_cfg,
+            )
+            if free_text_distribution is None:
+                free_text_distribution = {}
+            for column_name, judge_result in llm_judge_data.get("free_text_columns", {}).items():
+                entry = free_text_distribution.setdefault(column_name, {"text_column": column_name})
+                if isinstance(entry, dict):
+                    entry["llm_judge_accuracy"] = judge_result.get("accuracy")
+            if isinstance(quality_report_data, dict):
+                quality_report_data["llm_accuracy_whole_row"] = (
+                    llm_judge_data.get("whole_row", {}).get("accuracy")
+                )
+        except Exception as exc:  # pragma: no cover - model/provider/env dependent
+            llm_judge_data = {"error": str(exc)}
+            print(f"Warning: unable to compute LLM-as-a-judge metrics: {exc}")
 
 
     payload = {
@@ -237,6 +344,9 @@ def main() -> None:
         "metrics_qa": metrics,
         "free_text_distribution": free_text_distribution,
         "quality_report": quality_report_data,
+        "joint_holdout_discriminator": joint_holdout_discriminator,
+        "tstr": tstr_data,
+        "llm_judge": llm_judge_data,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

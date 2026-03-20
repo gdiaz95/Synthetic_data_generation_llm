@@ -1,5 +1,6 @@
-input_csv: data/raw/Spotify.csv
-output_csv: data/processed/Spotify.csv
+dataset_name: adult_with_both_small
+input_csv: data/raw/{dataset_name}.csv
+output_csv: data/processed/{dataset_name}.csv
 json_path: null
 
 knn_k: 5

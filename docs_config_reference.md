@@ -87,6 +87,11 @@ Controls **free-text generation** and model backend behavior.
 - **Used by:** `run_full.py` to replace the config default after metadata is loaded or created interactively.
 - **Fallback behavior:** If the metadata field is missing, the pipeline uses `configs/llm_generation.yml:max_words_generation`.
 
+### Metadata field: `target_column`
+- **What it is:** Optional target column stored in `.metadata/{dataset_name}/metadata.json`.
+- **Used by:** `run_full.py` to persist the dataset's predictive target and by `run_structured_metrics.py` to trigger TSTR automatically.
+- **Effect:** When present, metrics run a simple Train-on-Synthetic-Test-on-Real evaluation using synthetic rows for training and real holdout rows for testing.
+
 ### `temperature`
 - **What it is:** Sampling randomness for text generation.
 - **Used by:** `generate_batch(..., config={...})` passed to provider.
@@ -135,9 +140,9 @@ Controls **free-text generation** and model backend behavior.
 - **Current value:** `1`
 
 ### `text_vector_hash_dim`
-- **What it is:** Hash-embedding width used for lightweight text-vector preparation after each generated free-text column.
+- **What it is:** Width of the row-normalized hashed text vector prepared after each generated free-text column.
 - **Used by:** `prepare_text_vector_features(...)` in `run_full.py`.
-- **Effect:** Higher values keep more token-bucket detail for future distance integration; lower values are faster and smaller.
+- **Effect:** The resulting feature block has exactly this many columns; higher values keep more token-bucket detail for future distance integration, while lower values are faster and smaller.
 - **Current value:** `8`
 
 ---
@@ -198,3 +203,36 @@ So precedence is generally:
 1. CLI flag (if passed)
 2. YAML config file value
 3. Code default (for some fields)
+
+---
+
+## 6) `configs/metrics.yml`
+
+Controls **post-generation evaluation** for structured columns, free-text columns, and optional TSTR.
+
+### `text_embedding_dim`
+- **What it is:** Shared embedding width cap used by free-text metrics and TSTR text features.
+- **Used by:** TF-IDF + optional SVD steps in the evaluation pipeline.
+
+### `text_max_features`
+- **What it is:** Maximum TF-IDF vocabulary size for free-text metrics and TSTR text features.
+- **Used by:** `TfidfVectorizer(max_features=...)`.
+
+### `text_mmd_batch_size`
+- **What it is:** Batch size for exact blockwise MMD computation in free-text metrics.
+- **Used by:** `evaluate_first_free_text_distribution(...)`.
+
+### `target_column`
+- **What it is:** Optional fallback target column for TSTR when metadata does not define one.
+- **Recommendation:** Prefer storing this in metadata so the dataset carries its own target declaration.
+
+### `tstr_structured_weight`
+- **What it is:** Multiplier applied to the row-normalized structured feature block before model training or distance blending.
+
+### `tstr_text_weight_default`
+- **What it is:** Default multiplier applied to each row-normalized text block.
+- **Current default:** `0.01` to keep text blocks from overwhelming structured features unless you raise it.
+
+### `tstr_text_weight_by_column`
+- **What it is:** Optional per-text-column overrides for `tstr_text_weight_default`.
+- **Effect:** Lets you reduce or increase the influence of specific free-text columns in the TSTR feature matrix.
