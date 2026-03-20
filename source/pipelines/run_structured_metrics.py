@@ -13,14 +13,17 @@ if str(root_path) not in sys.path:
 
 import pandas as pd
 import yaml
+from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
 
 from source.metrics.structured_metrics import evaluate_structured_qa_metrics
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
+from source.metrics.llm_judge import evaluate_llm_judge
 
 
 DEFAULT_CONFIG = Path("configs/metrics.yml")
 DEFAULT_METADATA_ROOT = Path(".metadata")
+DEFAULT_LLM_CONFIG = Path("configs/llm_generation.yml")
 
 
 def _read_yaml(path: Path) -> dict:
@@ -79,6 +82,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    load_dotenv()
     args = parse_args()
     cfg = _read_yaml(args.config)
 
@@ -105,6 +109,11 @@ def main() -> None:
     text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
     text_max_features = int(cfg.get("text_max_features", 200_000))
     text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 4096))
+    judge_cfg = cfg.get("llm_judge", {})
+    if judge_cfg is None:
+        judge_cfg = {}
+    if not isinstance(judge_cfg, dict):
+        raise ValueError("llm_judge must be a mapping in metrics.yml when provided.")
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -225,6 +234,34 @@ def main() -> None:
                 free_text_distribution[column_name] = {"error": str(exc)}
                 print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
 
+    llm_judge_data: dict[str, Any] | None = None
+    judge_enabled = bool(judge_cfg.get("enabled", False))
+    if judge_enabled:
+        if "model" not in judge_cfg or "provider" not in judge_cfg:
+            fallback_judge_cfg = _read_yaml(DEFAULT_LLM_CONFIG) if DEFAULT_LLM_CONFIG.exists() else {}
+            judge_cfg = {**fallback_judge_cfg, **judge_cfg}
+
+        print("Evaluating LLM-as-a-judge metrics on free-text columns and whole rows...")
+        try:
+            llm_judge_data = evaluate_llm_judge(
+                real_holdout_df=real_holdout.reset_index(drop=True),
+                synthetic_df=synthetic_df.reset_index(drop=True),
+                free_text_columns=text_columns,
+                judge_cfg=judge_cfg,
+            )
+            if free_text_distribution is None:
+                free_text_distribution = {}
+            for column_name, judge_result in llm_judge_data.get("free_text_columns", {}).items():
+                entry = free_text_distribution.setdefault(column_name, {"text_column": column_name})
+                if isinstance(entry, dict):
+                    entry["llm_judge_accuracy"] = judge_result.get("accuracy")
+            if isinstance(quality_report_data, dict):
+                quality_report_data["llm_accuracy_whole_row"] = (
+                    llm_judge_data.get("whole_row", {}).get("accuracy")
+                )
+        except Exception as exc:  # pragma: no cover - model/provider/env dependent
+            llm_judge_data = {"error": str(exc)}
+            print(f"Warning: unable to compute LLM-as-a-judge metrics: {exc}")
 
 
     payload = {
@@ -237,6 +274,7 @@ def main() -> None:
         "metrics_qa": metrics,
         "free_text_distribution": free_text_distribution,
         "quality_report": quality_report_data,
+        "llm_judge": llm_judge_data,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

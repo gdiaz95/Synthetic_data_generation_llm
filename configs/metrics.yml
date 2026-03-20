@@ -29,3 +29,14 @@ random_state: 42
 text_embedding_dim: 768
 text_max_features: 200000
 text_mmd_batch_size: 4096
+
+# Optional LLM-as-a-judge metrics.
+# When enabled, the pipeline classifies balanced real-holdout vs synthetic examples
+# for each free-text column and for full rows, then stores the resulting accuracy
+# statistics in the report JSON.
+llm_judge:
+  enabled: false
+  # model/provider default to configs/llm_generation.yml when omitted.
+  max_examples_per_class: 128
+  batch_size: 8
+  random_state: 42
