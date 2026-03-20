@@ -133,7 +133,31 @@ Controls prompt template text and neighbor snippet formatting.
 
 ---
 
-## 4) Environment variables (`.env`)
+## 4) `configs/metrics.yml`
+
+Controls **evaluation settings**, including free-text distribution metrics and TSTR.
+
+### `text_embedding_dim`, `text_max_features`, `text_mmd_batch_size`
+- **What they are:** Controls for the TF-IDF + SVD embedding space and exact batched MMD computation used in free-text distribution metrics.
+- **Used by:** `evaluate_first_free_text_distribution(...)` in `source/metrics/free_text_metrics.py`.
+- **Also used by:** `evaluate_tstr(...)` so the same text embedding width and vocabulary cap apply across free-text metrics and TSTR.
+
+### `tstr_structured_weight`
+- **What it is:** Weight applied to the structured feature block in TSTR.
+- **Used by:** `evaluate_tstr(...)` before concatenating feature blocks.
+
+### `tstr_text_weight_default`
+- **What it is:** Default weight applied to each free-text block in TSTR.
+- **Used by:** `evaluate_tstr(...)` for any text column without a specific override.
+
+### `tstr_text_weight_by_column`
+- **What it is:** Optional mapping of text column name to a custom TSTR block weight.
+- **Used by:** `evaluate_tstr(...)` to tune each text field independently.
+- **Normalization note:** TSTR always row-normalizes structured and text blocks, and always rescales each text block to the structured block width before applying the configured weight.
+
+---
+
+## 5) Environment variables (`.env`)
 
 These are not in YAML, but they are required depending on provider.
 
@@ -145,13 +169,22 @@ These are not in YAML, but they are required depending on provider.
 
 ---
 
+
+### `target_column` (metadata JSON)
+- **What it is:** Optional name of the prediction target used for Train-on-Synthetic, Test-on-Real (TSTR) evaluation.
+- **Used by:** `source/pipelines/run_structured_metrics.py` when loading metadata.
+- **Behavior:**
+  - If present, the metrics pipeline runs TSTR automatically and writes the results under `tstr` in the output JSON report.
+  - If missing, TSTR is skipped.
+- **Supported inputs:** works with mixed structured + free-text feature columns.
+
 ### `distance_feature_weights_json` (CLI: `--feature-weights-json`)
 - **What it is:** Optional JSON file mapping tabular latent-space feature names to non-negative weight values.
 - **Used by:** `knn_retrieval_step1(...)` weighted Euclidean distance retrieval.
 - **Default behavior:** If omitted, all feature weights are `1.0` (standard Euclidean distance).
 - **Formula:** `sqrt(sum(w_i * (x_i - y_i)^2))`.
 
-## 5) CLI overrides (highest precedence)
+## 6) CLI overrides (highest precedence)
 
 When running `source/pipelines/run_full.py`, these flags override YAML values:
 - `--input-csv`, `--output-csv`, `--feature-weights-json`

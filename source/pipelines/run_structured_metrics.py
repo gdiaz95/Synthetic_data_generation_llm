@@ -16,7 +16,7 @@ import yaml
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from source.metrics.structured_metrics import evaluate_structured_qa_metrics
+from source.metrics.structured_metrics import evaluate_structured_qa_metrics, evaluate_tstr
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
 
 
@@ -106,6 +106,11 @@ def main() -> None:
     text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
     text_max_features = int(cfg.get("text_max_features", 200_000))
     text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 4096))
+    tstr_structured_weight = float(cfg.get("tstr_structured_weight", 1.0))
+    tstr_text_weight_default = float(cfg.get("tstr_text_weight_default", 0.3))
+    tstr_text_weight_by_column = cfg.get("tstr_text_weight_by_column", {})
+    if not isinstance(tstr_text_weight_by_column, dict):
+        raise ValueError("tstr_text_weight_by_column must be a mapping in metrics.yml")
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -137,6 +142,7 @@ def main() -> None:
     if not isinstance(config_text_columns, list):
         raise ValueError("free_text_columns must be a list in metrics.yml")
 
+    target_column: str | None = None
     if metadata is not None:
         metadata_dataset_name = metadata.get("dataset_name")
         if isinstance(metadata_dataset_name, str) and metadata_dataset_name.strip():
@@ -146,6 +152,11 @@ def main() -> None:
         if not isinstance(metadata_text_columns, list):
             raise ValueError("'free_text_columns' in metadata.json must be a list.")
         text_columns = [str(col) for col in metadata_text_columns]
+
+        metadata_target = metadata.get("target_column")
+        if metadata_target is not None:
+            target_column = str(metadata_target).strip() or None
+
         print(f"Using metadata from: {metadata_path}")
     else:
         text_columns = [str(col) for col in config_text_columns]
@@ -224,6 +235,27 @@ def main() -> None:
                 print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
 
 
+    tstr_results: dict[str, Any] = {}
+    if target_column:
+        print(f"Running TSTR on target column: {target_column}")
+        try:
+            tstr_results = evaluate_tstr(
+                train_df=real_train,
+                synthetic_df=synthetic_df,
+                holdout_df=real_holdout,
+                target_column=target_column,
+                text_columns=text_columns,
+                structured_weight=tstr_structured_weight,
+                text_weight_default=tstr_text_weight_default,
+                text_weight_by_column={str(k): float(v) for k, v in tstr_text_weight_by_column.items()},
+                text_embedding_dim=text_embedding_dim,
+                text_max_features=text_max_features,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            tstr_results = {"error": str(exc), "target_column": target_column}
+            print(f"Warning: unable to compute TSTR for '{target_column}': {exc}")
+    else:
+        print("No target_column in metadata; skipping TSTR.")
 
     payload = {
         "dataset_name": dataset_name,
@@ -235,6 +267,7 @@ def main() -> None:
         "metrics_qa": metrics,
         "free_text_distribution": free_text_distribution,
         "quality_report": quality_report_data,
+        "tstr": tstr_results,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -29,3 +29,10 @@ random_state: 42
 text_embedding_dim: 768
 text_max_features: 200000
 text_mmd_batch_size: 4096
+
+# TSTR settings for balancing structured and free-text feature blocks.
+# The synthetic-trained predictor uses these weights after normalizing text blocks
+# to the structured feature width so large text embeddings do not dominate.
+tstr_structured_weight: 1.0
+tstr_text_weight_default: 0.3
+tstr_text_weight_by_column: {}

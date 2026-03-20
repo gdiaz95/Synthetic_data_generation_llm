@@ -225,7 +225,7 @@ def _resolve_metadata(
     threshold: float,
     cli_feature_weights_path: Path | None,
     configured_json_path: Any | None,
-) -> tuple[list[str], dict[str, float] | None]:
+) -> tuple[list[str], dict[str, float] | None, str | None]:
     metadata_file = _resolve_json_metadata_path(dataset_name, configured_json_path)
     configured_json_raw = "" if configured_json_path is None else str(configured_json_path).strip().lower()
     allow_interactive_fallback = configured_json_raw in {"", "none", "null"}
@@ -239,14 +239,19 @@ def _resolve_metadata(
         text_columns = [str(col) for col in free_text_columns] if free_text_columns else [configured_text_column]
 
         metadata_weights = metadata.get("feature_weights")
+        metadata_target_column = metadata.get("target_column")
         feature_weights: dict[str, float] | None = None
         if metadata_weights is not None:
             if not isinstance(metadata_weights, dict):
                 raise ValueError("'feature_weights' in metadata.json must be an object.")
             feature_weights = {str(k): float(v) for k, v in metadata_weights.items()}
+        target_column = None
+        if metadata_target_column is not None:
+            target_column = str(metadata_target_column).strip() or None
     else:
         text_columns = [configured_text_column]
         feature_weights = None
+        target_column = None
 
         if allow_interactive_fallback and sys.stdin.isatty():
             entered_dataset = input(f"Dataset name for metadata storage [{dataset_name}]: ").strip()
@@ -263,12 +268,21 @@ def _resolve_metadata(
 
             feature_weights = _prompt_feature_weights(df, set(text_columns))
 
+            target_candidate = input(
+                "Optional target column for TSTR downstream metrics (press Enter to skip): "
+            ).strip()
+            target_column = target_candidate or None
+            if target_column is not None and target_column not in df.columns:
+                raise ValueError(f"Target column '{target_column}' does not exist in the dataset.")
+
             metadata_payload: dict[str, Any] = {
                 "dataset_name": dataset_name,
                 "free_text_columns": text_columns,
             }
             if feature_weights is not None:
                 metadata_payload["feature_weights"] = feature_weights
+            if target_column is not None:
+                metadata_payload["target_column"] = target_column
             metadata_file.parent.mkdir(parents=True, exist_ok=True)
             metadata_file.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
             print(f"Saved interactive metadata to: {metadata_file}")
@@ -292,7 +306,10 @@ def _resolve_metadata(
         feature_weights = _load_feature_weights(cli_feature_weights_path)
         print(f"Using CLI feature weights from: {cli_feature_weights_path}")
 
-    return unique_text_columns, feature_weights
+    if target_column is not None and target_column not in df.columns:
+        raise ValueError(f"Configured target column '{target_column}' does not exist in input data.")
+
+    return unique_text_columns, feature_weights, target_column
 
 
 def main() -> None:
@@ -350,7 +367,7 @@ def main() -> None:
 
     configured_text_column = tabular_cfg.get("text_column", "job_description")
     dataset_name = args.dataset_name or _dataset_name_from_path(input_csv)
-    text_columns, feature_weights = _resolve_metadata(
+    text_columns, feature_weights, target_column = _resolve_metadata(
         df,
         dataset_name=dataset_name,
         configured_text_column=configured_text_column,
@@ -359,6 +376,8 @@ def main() -> None:
         configured_json_path=tabular_cfg.get("json_path"),
     )
     print(f"- active text_columns: {text_columns}")
+    if target_column:
+        print(f"- metadata target_column: {target_column}")
 
     total_rows = len(df)
     if bool(llm_cfg.get("parallel_api_calls", False)):
