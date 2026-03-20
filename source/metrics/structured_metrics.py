@@ -5,6 +5,22 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from scipy import sparse
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    r2_score,
+    roc_auc_score,
+)
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, normalize
+
+from source.metrics.free_text_metrics import _embed_tfidf_svd_many
 
 
 @dataclass
@@ -119,3 +135,225 @@ def evaluate_structured_qa_metrics(
         report_file.unlink()
 
     return asdict(_to_summary(metrics))
+
+
+def _infer_prediction_task(target: pd.Series) -> str:
+    non_null = target.dropna()
+    if non_null.empty:
+        raise ValueError("Target column has no non-null rows for TSTR.")
+
+    unique_count = int(non_null.nunique(dropna=True))
+    if not pd.api.types.is_numeric_dtype(non_null):
+        return "classification"
+    if unique_count <= min(20, max(2, int(0.1 * len(non_null)))):
+        return "classification"
+    return "regression"
+
+
+def _normalize_block(block: Any) -> Any:
+    if sparse.issparse(block):
+        return normalize(block, norm="l2", axis=1, copy=False)
+    return normalize(block, norm="l2", axis=1)
+
+
+def _to_sparse_block(block: Any) -> sparse.csr_matrix:
+    if sparse.issparse(block):
+        return block.tocsr()
+    return sparse.csr_matrix(block)
+
+
+def _build_structured_block(
+    train_features: pd.DataFrame,
+    test_features: pd.DataFrame,
+    structured_columns: list[str],
+) -> tuple[Any, Any, int]:
+    if not structured_columns:
+        empty_train = sparse.csr_matrix((len(train_features), 0))
+        empty_test = sparse.csr_matrix((len(test_features), 0))
+        return empty_train, empty_test, 0
+
+    numeric_columns = [
+        col for col in structured_columns if pd.api.types.is_numeric_dtype(train_features[col])
+    ]
+    categorical_columns = [col for col in structured_columns if col not in numeric_columns]
+
+    transformers: list[tuple[str, Any, list[str]]] = []
+    if numeric_columns:
+        transformers.append(
+            (
+                "numeric",
+                Pipeline(
+                    steps=[
+                        ("imputer", SimpleImputer(strategy="median")),
+                        ("scaler", StandardScaler()),
+                    ]
+                ),
+                numeric_columns,
+            )
+        )
+    if categorical_columns:
+        transformers.append(
+            (
+                "categorical",
+                Pipeline(
+                    steps=[
+                        ("imputer", SimpleImputer(strategy="most_frequent")),
+                        ("encoder", OneHotEncoder(handle_unknown="ignore")),
+                    ]
+                ),
+                categorical_columns,
+            )
+        )
+
+    transformer = ColumnTransformer(transformers=transformers)
+    train_block = transformer.fit_transform(train_features[structured_columns])
+    test_block = transformer.transform(test_features[structured_columns])
+    return train_block, test_block, int(train_block.shape[1])
+
+
+def _build_text_block(
+    train_text: pd.Series,
+    test_text: pd.Series,
+    *,
+    embedding_dim: int,
+    max_features: int,
+) -> tuple[Any, Any, int]:
+    clean_train = train_text.fillna("").astype(str).str.strip()
+    clean_test = test_text.fillna("").astype(str).str.strip()
+    try:
+        embeddings, latent_dim = _embed_tfidf_svd_many(
+            [clean_train, clean_test],
+            embedding_dim=embedding_dim,
+            max_features=max_features,
+            min_df=1,
+        )
+    except ValueError as exc:
+        if "empty vocabulary" not in str(exc).lower():
+            raise
+        empty_train = sparse.csr_matrix((len(train_text), 0))
+        empty_test = sparse.csr_matrix((len(test_text), 0))
+        return empty_train, empty_test, 0
+    train_matrix, test_matrix = embeddings
+    return train_matrix, test_matrix, int(latent_dim)
+
+
+def evaluate_tstr(
+    *,
+    train_df: pd.DataFrame,
+    synthetic_df: pd.DataFrame,
+    holdout_df: pd.DataFrame,
+    target_column: str,
+    text_columns: list[str],
+    structured_weight: float = 1.0,
+    text_weight_default: float = 0.01,
+    text_weight_by_column: dict[str, float] | None = None,
+    text_embedding_dim: int = 768,
+    text_max_features: int = 50_000,
+) -> dict[str, Any]:
+    text_weight_by_column = text_weight_by_column or {}
+
+    for name, frame in {
+        "train": train_df,
+        "synthetic": synthetic_df,
+        "holdout": holdout_df,
+    }.items():
+        if target_column not in frame.columns:
+            raise ValueError(f"Target column '{target_column}' missing from {name} dataframe.")
+
+    feature_columns = [col for col in synthetic_df.columns if col != target_column]
+    available_text_columns = [col for col in text_columns if col in feature_columns]
+    structured_columns = [col for col in feature_columns if col not in set(available_text_columns)]
+
+    syn_eval = synthetic_df[feature_columns + [target_column]].dropna(subset=[target_column]).copy()
+    holdout_eval = holdout_df[feature_columns + [target_column]].dropna(subset=[target_column]).copy()
+    if syn_eval.empty or holdout_eval.empty:
+        raise ValueError("Need non-empty synthetic and holdout rows with non-null target values for TSTR.")
+
+    y_train = syn_eval[target_column]
+    y_test = holdout_eval[target_column]
+    task = _infer_prediction_task(y_train)
+
+    train_blocks: list[Any] = []
+    test_blocks: list[Any] = []
+    text_diagnostics: dict[str, dict[str, float | int]] = {}
+
+    structured_train, structured_test, structured_width = _build_structured_block(
+        syn_eval,
+        holdout_eval,
+        structured_columns,
+    )
+    if structured_width > 0:
+        structured_train = _to_sparse_block(_normalize_block(structured_train) * float(structured_weight))
+        structured_test = _to_sparse_block(_normalize_block(structured_test) * float(structured_weight))
+        train_blocks.append(structured_train)
+        test_blocks.append(structured_test)
+
+    for column_name in available_text_columns:
+        text_train, text_test, width = _build_text_block(
+            syn_eval[column_name],
+            holdout_eval[column_name],
+            embedding_dim=int(text_embedding_dim),
+            max_features=int(text_max_features),
+        )
+        if width == 0:
+            continue
+        weight = float(text_weight_by_column.get(column_name, text_weight_default))
+        text_train = _to_sparse_block(_normalize_block(text_train) * weight)
+        text_test = _to_sparse_block(_normalize_block(text_test) * weight)
+        train_blocks.append(text_train)
+        test_blocks.append(text_test)
+        text_diagnostics[column_name] = {
+            "width": width,
+            "weight": weight,
+        }
+
+    if not train_blocks:
+        raise ValueError("TSTR could not build any structured or text features.")
+
+    x_train = sparse.hstack(train_blocks, format="csr")
+    x_test = sparse.hstack(test_blocks, format="csr")
+
+    metrics: dict[str, Any] = {
+        "task": task,
+        "target_column": target_column,
+        "n_synthetic_train": int(len(syn_eval)),
+        "n_holdout_test": int(len(holdout_eval)),
+        "structured_columns": structured_columns,
+        "text_columns": available_text_columns,
+        "structured_block": {
+            "width": structured_width,
+            "weight": float(structured_weight),
+        },
+        "text_blocks": text_diagnostics,
+        "total_feature_width": int(x_train.shape[1]),
+    }
+
+    if task == "classification":
+        model = LogisticRegression(max_iter=1000)
+        model.fit(x_train, y_train.astype(str))
+        y_test_eval = y_test.astype(str)
+        predictions = model.predict(x_test)
+        metrics.update(
+            {
+                "accuracy": float(accuracy_score(y_test_eval, predictions)),
+                "balanced_accuracy": float(balanced_accuracy_score(y_test_eval, predictions)),
+                "f1_weighted": float(f1_score(y_test_eval, predictions, average="weighted")),
+            }
+        )
+        unique_labels = sorted(y_test_eval.unique())
+        if len(unique_labels) == 2:
+            probabilities = model.predict_proba(x_test)[:, 1]
+            metrics["roc_auc"] = float(roc_auc_score(y_test_eval, probabilities))
+    else:
+        model = Ridge()
+        model.fit(x_train, pd.to_numeric(y_train, errors="coerce"))
+        y_test_eval = pd.to_numeric(y_test, errors="coerce")
+        predictions = model.predict(x_test)
+        metrics.update(
+            {
+                "mae": float(mean_absolute_error(y_test_eval, predictions)),
+                "r2": float(r2_score(y_test_eval, predictions)),
+            }
+        )
+
+    return metrics

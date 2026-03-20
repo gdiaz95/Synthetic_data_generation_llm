@@ -16,7 +16,7 @@ import yaml
 from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
 
-from source.metrics.structured_metrics import evaluate_structured_qa_metrics
+from source.metrics.structured_metrics import evaluate_structured_qa_metrics, evaluate_tstr
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
 from source.metrics.llm_judge import evaluate_llm_judge
 
@@ -115,6 +115,11 @@ def main() -> None:
     text_embedding_dim = int(cfg.get("text_embedding_dim", 768))
     text_max_features = int(cfg.get("text_max_features", 200_000))
     text_mmd_batch_size = int(cfg.get("text_mmd_batch_size", 4096))
+    tstr_structured_weight = float(cfg.get("tstr_structured_weight", 1.0))
+    tstr_text_weight_default = float(cfg.get("tstr_text_weight_default", 0.01))
+    tstr_text_weight_by_column = cfg.get("tstr_text_weight_by_column", {})
+    if not isinstance(tstr_text_weight_by_column, dict):
+        raise ValueError("tstr_text_weight_by_column must be a mapping in metrics.yml.")
     judge_cfg = cfg.get("llm_judge", {})
     if judge_cfg is None:
         judge_cfg = {}
@@ -160,9 +165,13 @@ def main() -> None:
         if not isinstance(metadata_text_columns, list):
             raise ValueError("'free_text_columns' in metadata.json must be a list.")
         text_columns = [str(col) for col in metadata_text_columns]
+        metadata_target_column = metadata.get("target_column")
+        target_column = str(metadata_target_column).strip() if metadata_target_column else None
         print(f"Using metadata from: {metadata_path}")
     else:
         text_columns = [str(col) for col in config_text_columns]
+        cfg_target_column = cfg.get("target_column")
+        target_column = str(cfg_target_column).strip() if cfg_target_column else None
         print(f"Metadata JSON not found at {metadata_path}; using free_text_columns from config.")
 
     real_path = _resolve_path(real_template, dataset_name=dataset_name, model=model)
@@ -176,6 +185,10 @@ def main() -> None:
 
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
+
+    if target_column and target_column not in real_df.columns:
+        print(f"Configured target_column '{target_column}' does not exist in real data; skipping TSTR.")
+        target_column = None
 
     structured_columns = [col for col in real_df.columns if col not in set(text_columns)]
     if not structured_columns:
@@ -240,6 +253,31 @@ def main() -> None:
                 free_text_distribution[column_name] = {"error": str(exc)}
                 print(f"Warning: unable to compute free-text distribution metrics for '{column_name}': {exc}")
 
+    tstr_data: dict[str, Any] | None = None
+    if target_column:
+        print(f"Evaluating TSTR metrics using target column: {target_column}")
+        try:
+            tstr_data = evaluate_tstr(
+                train_df=real_train,
+                synthetic_df=synthetic_df,
+                holdout_df=real_holdout,
+                target_column=target_column,
+                text_columns=text_columns,
+                structured_weight=tstr_structured_weight,
+                text_weight_default=tstr_text_weight_default,
+                text_weight_by_column={
+                    str(key): float(value) for key, value in tstr_text_weight_by_column.items()
+                },
+                text_embedding_dim=text_embedding_dim,
+                text_max_features=text_max_features,
+            )
+        except Exception as exc:  # pragma: no cover - dataset/config dependent
+            tstr_data = {"error": str(exc), "target_column": target_column}
+            print(f"Warning: unable to compute TSTR metrics: {exc}")
+    else:
+        tstr_data = {"skipped": True, "reason": "No valid target_column was configured."}
+        print("Skipping TSTR metrics because no valid target_column was configured.")
+
     llm_judge_data: dict[str, Any] | None = None
     judge_enabled = bool(judge_cfg.get("enabled", False))
     if judge_enabled:
@@ -280,6 +318,7 @@ def main() -> None:
         "metrics_qa": metrics,
         "free_text_distribution": free_text_distribution,
         "quality_report": quality_report_data,
+        "tstr": tstr_data,
         "llm_judge": llm_judge_data,
     }
 
