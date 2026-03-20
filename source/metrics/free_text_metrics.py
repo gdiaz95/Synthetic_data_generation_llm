@@ -177,6 +177,7 @@ def _embed_tfidf_svd_many(
     *,
     embedding_dim: int,
     max_features: int,
+    min_df: int = 2,
 ) -> tuple[list[np.ndarray], int]:
     cleaned_sets = [list(series) for series in text_sets]
     lengths = [len(items) for items in cleaned_sets]
@@ -190,7 +191,7 @@ def _embed_tfidf_svd_many(
     if len(joined) < 2:
         raise ValueError("Need at least two total text rows to compute distribution metrics.")
 
-    vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=(1, 2), min_df=2)
+    vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=(1, 2), min_df=min_df)
     tfidf = vectorizer.fit_transform(joined)
 
     # Keep target dimensionality high by default; cap by matrix rank.

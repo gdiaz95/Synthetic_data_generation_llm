@@ -308,7 +308,7 @@ def _resolve_metadata(
     cli_feature_weights_path: Path | None,
     configured_json_path: Any | None,
     default_max_words_generation: int,
-) -> tuple[list[str], dict[str, float] | None, int]:
+) -> tuple[list[str], dict[str, float] | None, int, str | None]:
     metadata_file = _resolve_json_metadata_path(dataset_name, configured_json_path)
     configured_json_raw = "" if configured_json_path is None else str(configured_json_path).strip().lower()
     allow_interactive_fallback = configured_json_raw in {"", "none", "null"}
@@ -334,10 +334,13 @@ def _resolve_metadata(
             max_words_generation = int(metadata_max_words_generation)
             if max_words_generation <= 0:
                 raise ValueError("'max_words_generation' in metadata.json must be a positive integer.")
+        metadata_target_column = metadata.get("target_column")
+        target_column = str(metadata_target_column).strip() if metadata_target_column else None
     else:
         text_columns = [configured_text_column] if configured_text_column else []
         feature_weights = None
         max_words_generation = default_max_words_generation
+        target_column = None
 
         if allow_interactive_fallback and sys.stdin.isatty():
             entered_dataset = input(f"Dataset name for metadata storage [{dataset_name}]: ").strip()
@@ -362,6 +365,15 @@ def _resolve_metadata(
                     default_max_words_generation,
                 )
             feature_weights = _prompt_feature_weights(df, set(text_columns))
+            target_response = input("Optional target column for downstream TSTR metrics [none]: ").strip()
+            if target_response:
+                if target_response not in df.columns:
+                    print(
+                        f"Target column '{target_response}' does not exist in the dataset; "
+                        "skipping TSTR metadata."
+                    )
+                else:
+                    target_column = target_response
 
             metadata_payload: dict[str, Any] = {
                 "dataset_name": dataset_name,
@@ -370,6 +382,8 @@ def _resolve_metadata(
             }
             if feature_weights is not None:
                 metadata_payload["feature_weights"] = feature_weights
+            if target_column:
+                metadata_payload["target_column"] = target_column
             metadata_file.parent.mkdir(parents=True, exist_ok=True)
             metadata_file.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
             print(f"Saved interactive metadata to: {metadata_file}")
@@ -393,7 +407,11 @@ def _resolve_metadata(
         feature_weights = _load_feature_weights(cli_feature_weights_path)
         print(f"Using CLI feature weights from: {cli_feature_weights_path}")
 
-    return unique_text_columns, feature_weights, max_words_generation
+    if target_column and target_column not in df.columns:
+        print(f"Configured target_column '{target_column}' does not exist in dataset; skipping TSTR.")
+        target_column = None
+
+    return unique_text_columns, feature_weights, max_words_generation, target_column
 
 
 def main() -> None:
@@ -461,7 +479,7 @@ def main() -> None:
 
     configured_text_column = tabular_cfg.get("text_column")
     dataset_name = runtime_dataset_name or _dataset_name_from_path(input_csv)
-    text_columns, feature_weights, metadata_max_words_generation = _resolve_metadata(
+    text_columns, feature_weights, metadata_max_words_generation, target_column = _resolve_metadata(
         df,
         dataset_name=dataset_name,
         configured_text_column=configured_text_column,
@@ -474,6 +492,7 @@ def main() -> None:
     llm_cfg["max_words_generation"] = max_words_generation
     print(f"- active text_columns: {text_columns}")
     print(f"- resolved max_words_generation: {max_words_generation}")
+    print(f"- target_column: {target_column or '(none)'}")
 
     total_rows = len(df)
     if bool(llm_cfg.get("parallel_api_calls", False)):

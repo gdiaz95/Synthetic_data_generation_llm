@@ -50,6 +50,28 @@ class NPGC_special:
         LOGGER.info(f"Sampling {num_rows} rows...")
         return self._generate_samples(num_rows, seed)
 
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Project rows into the fitted Gaussian copula Z-space with one value per column."""
+        if not self._fitted:
+            raise RuntimeError("Model has not been fitted. Call `fit` first.")
+        self._validate_data(data)
+
+        expected_columns = list(self._model_state["columns"])
+        missing_columns = [col for col in expected_columns if col not in data.columns]
+        if missing_columns:
+            raise ValueError(f"Missing columns for transform: {missing_columns}")
+
+        z_df = pd.DataFrame(index=data.index, columns=expected_columns, dtype=float)
+        marginals = self._model_state["marginals"]
+        for col in expected_columns:
+            meta = marginals[col]
+            if meta["type"] == "categorical":
+                u = self._transform_categorical_with_meta(data[col], meta)
+            else:
+                u = self._transform_numeric_with_meta(data[col], meta)
+            z_df[col] = self._uniform_to_gaussian(u)
+        return z_df
+
     # Persistence helpers
 
     def save(self, filepath: str | os.PathLike[str]) -> None:
@@ -311,6 +333,57 @@ class NPGC_special:
         u = np.asarray(u, float)
         u = np.clip(u, 1e-12, 1 - 1e-12)
         return norm.ppf(u)
+
+    def _transform_numeric_with_meta(self, column: pd.Series, meta: dict[str, Any]) -> np.ndarray:
+        arr = pd.to_numeric(column, errors="coerce").to_numpy(dtype=float)
+        sorted_vals = np.asarray(meta["sorted_values"], dtype=float)
+        nan_frac = float(meta.get("nan_frac", 0.0))
+        u = np.full(arr.shape, 0.5, dtype=float)
+
+        if sorted_vals.size == 0:
+            return np.clip(u, 1e-12, 1 - 1e-12)
+
+        mask = ~np.isnan(arr)
+        if mask.any():
+            valid = arr[mask]
+            left = np.searchsorted(sorted_vals, valid, side="left")
+            right = np.searchsorted(sorted_vals, valid, side="right")
+            ranks = (left + right + 1.0) / 2.0
+            u_non_missing = ranks / float(len(sorted_vals))
+            u[mask] = u_non_missing * max(1.0 - nan_frac, 1e-12)
+
+        if (~mask).any() and nan_frac > 0:
+            u[~mask] = 1.0 - (nan_frac / 2.0)
+
+        return np.clip(u, 1e-12, 1 - 1e-12)
+
+    def _transform_categorical_with_meta(self, column: pd.Series, meta: dict[str, Any]) -> np.ndarray:
+        arr = np.asarray(column, dtype=object)
+        labels = list(meta["labels"])
+        counts = np.asarray(meta["counts"], dtype=float)
+        nan_frac = float(meta.get("nan_frac", 0.0))
+        u = np.full(arr.shape, 0.5 * max(1.0 - nan_frac, 1e-12), dtype=float)
+
+        if counts.size == 0:
+            return np.clip(u, 1e-12, 1 - 1e-12)
+
+        total = counts.sum()
+        probs = counts / total if total > 0 else np.full(counts.shape, 1.0 / len(counts))
+        upper = np.cumsum(probs)
+        lower = np.insert(upper[:-1], 0, 0.0)
+        midpoint = (lower + upper) / 2.0
+        midpoint_map = {label: midpoint[idx] for idx, label in enumerate(labels)}
+
+        is_nan = pd.isna(arr)
+        non_missing_mask = ~is_nan
+        if non_missing_mask.any():
+            mapped = [midpoint_map.get(value, 0.5) for value in arr[non_missing_mask]]
+            u[non_missing_mask] = np.asarray(mapped, dtype=float) * max(1.0 - nan_frac, 1e-12)
+
+        if is_nan.any() and nan_frac > 0:
+            u[is_nan] = 1.0 - (nan_frac / 2.0)
+
+        return np.clip(u, 1e-12, 1 - 1e-12)
     
     def _empirical_cdf_continuous(self, column: pd.Series, rng: np.random.Generator, epsilon: float | None = 1.0, integer_tolerance: float = 1e-12) -> np.ndarray:
         arr = np.asarray(column, float)
