@@ -255,12 +255,10 @@ def main() -> None:
                 entry = free_text_distribution.setdefault(column_name, {"text_column": column_name})
                 if isinstance(entry, dict):
                     entry["llm_judge_accuracy"] = judge_result.get("accuracy")
-                    entry["llm_judge"] = judge_result
             if isinstance(quality_report_data, dict):
                 quality_report_data["llm_accuracy_whole_row"] = (
                     llm_judge_data.get("whole_row", {}).get("accuracy")
                 )
-                quality_report_data["llm_judge"] = llm_judge_data.get("whole_row")
         except Exception as exc:  # pragma: no cover - model/provider/env dependent
             llm_judge_data = {"error": str(exc)}
             print(f"Warning: unable to compute LLM-as-a-judge metrics: {exc}")
