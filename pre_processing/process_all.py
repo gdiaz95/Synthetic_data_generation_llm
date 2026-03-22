@@ -7,6 +7,7 @@ import Airbnb
 import Kickstarter
 import consumer_complaint
 import fake_job_postings
+import harvard_reviews
 import student_satisfaction
 
 Processor = Callable[[], object]
@@ -16,6 +17,7 @@ PROCESSORS: list[tuple[str, Processor]] = [
     ("Kickstarter", Kickstarter.main),
     ("consumer_complaint", consumer_complaint.main),
     ("fake_job_postings", fake_job_postings.main),
+    ("harvard_reviews", harvard_reviews.main),
     ("student_satisfaction", student_satisfaction.main),
 ]
 
