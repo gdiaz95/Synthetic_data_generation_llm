@@ -104,6 +104,22 @@ def _load_previous_llm_judge(output_path: Path) -> dict[str, Any] | None:
     return previous_judge if isinstance(previous_judge, dict) else None
 
 
+def _apply_llm_judge_summary(
+    llm_judge_data: dict[str, Any],
+    free_text_distribution: dict[str, Any] | None,
+    quality_report_data: dict[str, Any],
+) -> dict[str, Any] | None:
+    if free_text_distribution is None:
+        free_text_distribution = {}
+    for column_name, judge_result in llm_judge_data.get("free_text_columns", {}).items():
+        entry = free_text_distribution.setdefault(column_name, {"text_column": column_name})
+        if isinstance(entry, dict):
+            entry["llm_judge_accuracy"] = judge_result.get("accuracy")
+    if isinstance(quality_report_data, dict):
+        quality_report_data["llm_accuracy_whole_row"] = llm_judge_data.get("whole_row", {}).get("accuracy")
+    return free_text_distribution
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run structured-column QA metrics using real and synthetic datasets."
@@ -156,6 +172,16 @@ def main() -> None:
         judge_cfg = {}
     if not isinstance(judge_cfg, dict):
         raise ValueError("llm_judge must be a mapping in metrics.yml when provided.")
+    judge_enabled = bool(judge_cfg.get("enabled", False))
+    if judge_enabled:
+        fallback_judge_cfg = _read_yaml(DEFAULT_LLM_CONFIG) if DEFAULT_LLM_CONFIG.exists() else {}
+        judge_cfg = {
+            **fallback_judge_cfg,
+            **judge_cfg,
+            "model": str(judge_cfg.get("model") or fallback_judge_cfg.get("model") or "").strip(),
+            "provider": str(judge_cfg.get("provider") or fallback_judge_cfg.get("provider") or "auto").strip()
+            or "auto",
+        }
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -213,6 +239,8 @@ def main() -> None:
         raise FileNotFoundError(f"Real data not found at: {real_path}")
     if not synthetic_path.exists():
         raise FileNotFoundError(f"Synthetic data not found at: {synthetic_path}")
+
+    llm_billing_approved = _confirm_llm_billing() if judge_enabled else False
 
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
@@ -332,13 +360,8 @@ def main() -> None:
         print("Skipping TSTR metrics because no valid target_column was configured.")
 
     llm_judge_data: dict[str, Any] | None = None
-    judge_enabled = bool(judge_cfg.get("enabled", False))
     if judge_enabled:
-        if _confirm_llm_billing():
-            if "model" not in judge_cfg or "provider" not in judge_cfg:
-                fallback_judge_cfg = _read_yaml(DEFAULT_LLM_CONFIG) if DEFAULT_LLM_CONFIG.exists() else {}
-                judge_cfg = {**fallback_judge_cfg, **judge_cfg}
-
+        if llm_billing_approved:
             print("Evaluating LLM-as-a-judge metrics on free-text columns and whole rows...")
             try:
                 llm_judge_data = evaluate_llm_judge(
@@ -347,22 +370,22 @@ def main() -> None:
                     free_text_columns=text_columns,
                     judge_cfg=judge_cfg,
                 )
-                if free_text_distribution is None:
-                    free_text_distribution = {}
-                for column_name, judge_result in llm_judge_data.get("free_text_columns", {}).items():
-                    entry = free_text_distribution.setdefault(column_name, {"text_column": column_name})
-                    if isinstance(entry, dict):
-                        entry["llm_judge_accuracy"] = judge_result.get("accuracy")
-                if isinstance(quality_report_data, dict):
-                    quality_report_data["llm_accuracy_whole_row"] = (
-                        llm_judge_data.get("whole_row", {}).get("accuracy")
-                    )
+                free_text_distribution = _apply_llm_judge_summary(
+                    llm_judge_data,
+                    free_text_distribution,
+                    quality_report_data,
+                )
             except Exception as exc:  # pragma: no cover - model/provider/env dependent
                 llm_judge_data = {"error": str(exc)}
                 print(f"Warning: unable to compute LLM-as-a-judge metrics: {exc}")
         else:
             llm_judge_data = _load_previous_llm_judge(output_path)
             if llm_judge_data is not None:
+                free_text_distribution = _apply_llm_judge_summary(
+                    llm_judge_data,
+                    free_text_distribution,
+                    quality_report_data,
+                )
                 print("LLM billing permission denied; reusing llm_judge data from previous report.")
             else:
                 print("LLM billing permission denied; continuing without llm_judge metrics.")
