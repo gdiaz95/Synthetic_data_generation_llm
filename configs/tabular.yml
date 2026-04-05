@@ -1,4 +1,4 @@
-dataset_name: adult_with_both_small
+dataset_name: adult_with_three
 input_csv: data/raw/{dataset_name}.csv
 output_csv: data/processed/{dataset_name}.csv
 json_path: null
