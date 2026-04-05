@@ -163,6 +163,30 @@ def _write_run_log(output_csv: Path, run_details: dict[str, Any]) -> Path:
     return log_path
 
 
+def _confirm_llm_billing() -> bool:
+    prompt = (
+        "LLM generation can trigger external API billing. "
+        "Do you want to continue with LLM generation? [y/N]: "
+    )
+    if not sys.stdin.isatty():
+        print("Non-interactive session detected; defaulting to NO for billable LLM generation.")
+        return False
+    answer = input(prompt).strip().lower()
+    return answer in {"y", "yes"}
+
+
+def _find_existing_processed_output(base_output_csv: Path, model_name: str) -> Path | None:
+    candidate = _with_model_suffix(base_output_csv, model_name)
+    if candidate.exists():
+        return candidate
+    parent = base_output_csv.parent
+    if not parent.exists():
+        return None
+    pattern = f"{base_output_csv.stem}_*{base_output_csv.suffix}"
+    matches = sorted(parent.glob(pattern))
+    return matches[0] if matches else None
+
+
 
 def _detect_free_text_candidates(df: pd.DataFrame, threshold: float) -> list[str]:
     candidates: list[str] = []
@@ -528,6 +552,13 @@ def main() -> None:
     text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
     stage_nn_idx = tabular_result.nn_idx
     if text_columns:
+        if not _confirm_llm_billing():
+            existing_output = _find_existing_processed_output(output_csv, llm_cfg["model"])
+            if existing_output is not None:
+                print(f"ok data has been created already in processed: {existing_output}")
+            else:
+                print("LLM billing permission denied and no existing synthetic data was found in processed.")
+            return
         server_args = SimpleNamespace(
             model=llm_cfg["model"],
             provider=llm_cfg.get("provider", "auto"),
