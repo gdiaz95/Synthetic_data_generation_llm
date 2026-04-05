@@ -189,6 +189,7 @@ def run_tabular_generation(
     tabular_cfg: dict,
     text_columns: list[str],
     feature_weights: dict[str, float] | None = None,
+    compute_knn: bool = True,
 ) -> TabularGenerationResult:
     """Fit NPGC and generate synthetic tabular rows with neighbor indices."""
     excluded = [col for col in text_columns if col in real_df.columns]
@@ -213,7 +214,7 @@ def run_tabular_generation(
     )
 
     nn_idx: np.ndarray | None = None
-    if text_columns:
+    if text_columns and compute_knn:
         print(f"- Running KNN retrieval in latent space with k={int(tabular_cfg['knn_k'])}...")
         nn_idx, _ = knn_retrieval_step1(
             real_z,
@@ -222,6 +223,8 @@ def run_tabular_generation(
             feature_weights=feature_weights,
         )
         print("- Tabular generation and KNN retrieval complete.")
+    elif text_columns:
+        print("- Skipping KNN retrieval; tabular-only generation requested.")
     else:
         print("- No free-text columns configured; skipping KNN retrieval.")
 

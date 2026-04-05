@@ -163,16 +163,31 @@ def _write_run_log(output_csv: Path, run_details: dict[str, Any]) -> Path:
     return log_path
 
 
-def _confirm_llm_billing() -> bool:
-    prompt = (
-        "LLM generation can trigger external API billing. "
-        "Do you want to continue with LLM generation? [y/N]: "
-    )
+def _confirm_yes_no(prompt: str, *, non_interactive_message: str) -> bool:
     if not sys.stdin.isatty():
-        print("Non-interactive session detected; defaulting to NO for billable LLM generation.")
+        print(non_interactive_message)
         return False
     answer = input(prompt).strip().lower()
     return answer in {"y", "yes"}
+
+
+def _confirm_llm_billing() -> bool:
+    prompt = (
+        "LLM generation can trigger external API billing before tabular generation runs with KNN retrieval. "
+        "Do you want to continue with LLM generation? [y/N]: "
+    )
+    return _confirm_yes_no(
+        prompt,
+        non_interactive_message="Non-interactive session detected; defaulting to NO for billable LLM generation.",
+    )
+
+
+def _confirm_tabular_only_generation() -> bool:
+    prompt = "Do you want to generate tabular data only and save it without the LLM model suffix? [y/N]: "
+    return _confirm_yes_no(
+        prompt,
+        non_interactive_message="Non-interactive session detected; defaulting to NO for tabular-only generation.",
+    )
 
 
 def _find_existing_processed_output(base_output_csv: Path, model_name: str) -> Path | None:
@@ -518,8 +533,23 @@ def main() -> None:
     print(f"- resolved max_words_generation: {max_words_generation}")
     print(f"- target_column: {target_column or '(none)'}")
 
+    should_run_llm = bool(text_columns)
+    tabular_only_mode = False
+    if should_run_llm and not _confirm_llm_billing():
+        if _confirm_tabular_only_generation():
+            tabular_only_mode = True
+            should_run_llm = False
+            print("Billing declined; proceeding with tabular-only generation and skipping KNN retrieval.")
+        else:
+            existing_output = _find_existing_processed_output(output_csv, llm_cfg["model"])
+            if existing_output is not None:
+                print(f"Synthetic data already exists in processed: {existing_output}")
+            else:
+                print("LLM billing permission denied and no existing synthetic data was found in processed.")
+            return
+
     total_rows = len(df)
-    if bool(llm_cfg.get("parallel_api_calls", False)):
+    if should_run_llm and bool(llm_cfg.get("parallel_api_calls", False)):
         parallel_parameter_name = "api_parallel_shards"
         parallel_threads = max(1, int(llm_cfg.get(parallel_parameter_name, 1)))
         if parallel_threads > total_rows:
@@ -533,6 +563,7 @@ def main() -> None:
         tabular_cfg,
         text_columns=text_columns,
         feature_weights=feature_weights,
+        compute_knn=should_run_llm,
     )
     knn_shape = None if tabular_result.nn_idx is None else tabular_result.nn_idx.shape
     print(
@@ -542,7 +573,7 @@ def main() -> None:
     )
 
     generated = tabular_result.synthetic_data.copy()
-    output_model_name = llm_cfg["model"]
+    output_model_name: str | None = llm_cfg["model"]
     llm_usage = {
         "prompt_tokens": 0,
         "completion_tokens": 0,
@@ -551,14 +582,7 @@ def main() -> None:
     }
     text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
     stage_nn_idx = tabular_result.nn_idx
-    if text_columns:
-        if not _confirm_llm_billing():
-            existing_output = _find_existing_processed_output(output_csv, llm_cfg["model"])
-            if existing_output is not None:
-                print(f"ok data has been created already in processed: {existing_output}")
-            else:
-                print("LLM billing permission denied and no existing synthetic data was found in processed.")
-            return
+    if should_run_llm:
         server_args = SimpleNamespace(
             model=llm_cfg["model"],
             provider=llm_cfg.get("provider", "auto"),
@@ -618,11 +642,15 @@ def main() -> None:
             llm_usage = llm_server.get_usage_summary()
             if llm_server.provider == "local":
                 llm_server.cleanup()
+    elif tabular_only_mode:
+        print("\n[2/3] Skipping LLM free-text generation (billing not approved; tabular-only generation requested).")
+        output_model_name = None
     else:
         print("\n[2/3] Skipping LLM free-text generation (no text columns configured).")
 
     print("[3/3] Saving generated dataset...")
-    output_csv = _with_model_suffix(output_csv, output_model_name)
+    if output_model_name is not None:
+        output_csv = _with_model_suffix(output_csv, output_model_name)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     generated.to_csv(output_csv, index=False)
     print(f"✅ Saved synthetic dataset to: {output_csv}")
