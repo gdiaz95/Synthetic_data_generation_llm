@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 from tqdm import tqdm
 
-from source.llm.server_model import SingleGPUServer
+from source.llm.server_model import SingleGPUServer, APIModelConnectionError
 
 
 
@@ -149,20 +149,37 @@ def generate_free_text_column(
         llm_cfg.get("max_words_generation", llm_cfg.get("max_words", 80))
     )
     max_words_reader = int(llm_cfg.get("max_words_reader", prompt_cfg.get("max_words_reader", 250)))
+    
+    # Adjust parameters for models that don't support certain values
+    temp_value = float(llm_cfg["temperature"])
+    model_name = llm_cfg.get("model", "").lower()
+    is_newer_model = any(newer_model in model_name for newer_model in ["gpt-5", "gpt-o1"])
+    
+    if is_newer_model:
+        temp_value = 1.0
+    
     generation_config = {
-        "temperature": float(llm_cfg["temperature"]),
-        "top_p": float(llm_cfg["top_p"]),
+        "temperature": temp_value,
         "max_tokens": int(llm_cfg["max_tokens"]),
         "stop_sequences": llm_cfg.get("stop_sequences"),
     }
+    
+    # Newer models don't support top_p
+    if not is_newer_model:
+        generation_config["top_p"] = float(llm_cfg["top_p"])
+    
     print(f"- Total rows to generate: {total_rows}")
     print(f"- Batch size: {batch_size}")
     print(f"- K neighbors used in prompts: {int(llm_cfg['k_neighbors'])}")
+    config_str = (
+        f"temperature={generation_config['temperature']}, "
+        f"max_tokens={generation_config['max_tokens']}"
+    )
+    if "top_p" in generation_config:
+        config_str += f", top_p={generation_config['top_p']}"
     print(
         "- Generation config: "
-        f"temperature={generation_config['temperature']}, "
-        f"top_p={generation_config['top_p']}, "
-        f"max_tokens={generation_config['max_tokens']}, "
+        f"{config_str}, "
         f"max_words_generation={max_words_generation}, "
         f"max_words_reader={max_words_reader}"
     )
@@ -248,6 +265,15 @@ def generate_free_text_column(
         failed_updates: dict[int, str] = {}
         try:
             responses = llm_server.generate_batch(prompts, config=generation_config)
+        except APIModelConnectionError as exc:
+            # If it's a systematic API error (unsupported parameter/value), stop immediately
+            error_msg = str(exc).lower()
+            if "unsupported_parameter" in error_msg or "unsupported_value" in error_msg:
+                print(f"\n❌ STOPPING: Systematic API configuration error detected on first batch:")
+                print(f"   {exc}")
+                raise
+            # Otherwise treat as batch failure and continue with single-row fallback
+            responses = []
         except Exception:
             responses = []
 
@@ -287,6 +313,17 @@ def generate_free_text_column(
             if looks_like_meta_output(cleaned_response):
                 cleaned_response = ""
             return cap_words(cleaned_response, max_words_generation), None
+        except APIModelConnectionError as exc:
+            # If it's a systematic API error (unsupported parameter/value), stop immediately
+            error_msg = str(exc).lower()
+            if "unsupported_parameter" in error_msg or "unsupported_value" in error_msg:
+                print(f"\n❌ STOPPING: Systematic API configuration error detected:")
+                print(f"   {exc}")
+                print(f"\n   Row {i} encountered a model compatibility issue.")
+                print(f"   This error affects ALL rows - stopping pipeline immediately.")
+                raise
+            # Otherwise return error message for retry logic
+            return None, f"APIModelConnectionError: {exc}"
         except Exception as exc:
             return None, f"{type(exc).__name__}: {exc}"
 
@@ -363,10 +400,20 @@ def generate_free_text_column(
                 for shard_id, indices in enumerate(shard_indices)
             ]
             for future in as_completed(futures):
-                _, shard_updates, shard_failures = future.result()
-                for i, text in shard_updates.items():
-                    generated.at[generated.index[i], text_column] = text
-                failed_rows.update(shard_failures)
+                try:
+                    _, shard_updates, shard_failures = future.result()
+                    for i, text in shard_updates.items():
+                        generated.at[generated.index[i], text_column] = text
+                    failed_rows.update(shard_failures)
+                except APIModelConnectionError as exc:
+                    # Immediately stop on systematic API errors
+                    error_msg = str(exc).lower()
+                    if "unsupported_parameter" in error_msg or "unsupported_value" in error_msg:
+                        print(f"\n❌ STOPPING: Systematic API error detected in parallel shard:")
+                        print(f"   {exc}")
+                        executor.shutdown(wait=False)
+                        raise
+                    raise
 
         for bar in progress_bars:
             bar.close()

@@ -15,7 +15,7 @@ root_path = Path(__file__).resolve().parents[2]
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
-from source.llm.server_model import SingleGPUServer
+from source.llm.server_model import SingleGPUServer, APIModelConnectionError
 from source.pipelines.run_free_text import generate_free_text_column
 from source.pipelines.run_tabular import knn_retrieval_with_text_blocks, run_tabular_generation
 from source.pipelines.text_vector_prep import prepare_text_vector_features
@@ -590,8 +590,23 @@ def main() -> None:
             max_len=int(llm_cfg["max_model_len"]),
             enforce_eager=bool(llm_cfg.get("enforce_eager", False) or args.enforce_eager),
         )
-        llm_server = SingleGPUServer(server_args)
-        output_model_name = llm_server.model_name
+        try:
+            llm_server = SingleGPUServer(server_args)
+            output_model_name = llm_server.model_name
+        except APIModelConnectionError as exc:
+            print(f"\n❌ API CONNECTION ERROR during server initialization - Stopping:")
+            print(f"   {exc}")
+            print(f"\n   Cannot proceed with model: {llm_cfg['model']}")
+            print(f"   Please verify your API credentials and model availability")
+            raise
+        except Exception as exc:
+            print(f"\n❌ ERROR during server initialization - Stopping:")
+            print(f"   Type: {type(exc).__name__}")
+            print(f"   Message: {exc}")
+            import traceback
+            traceback.print_exc()
+            raise
+        
         try:
             print("\n[2/3] Running LLM free-text generation...")
             for stage_idx, text_column in enumerate(text_columns, start=1):
@@ -638,6 +653,26 @@ def main() -> None:
                     "     Prepared text vectors for distance integration: "
                     f"column={text_column}, real={real_text_vectors.shape}, synthetic={synthetic_text_vectors.shape}"
                 )
+        except APIModelConnectionError as exc:
+            # API-specific errors get detailed diagnostic output
+            print(f"\n❌ API CONNECTION ERROR - Stopping immediately:")
+            print(f"   {exc}")
+            print(f"\n   Diagnostics to check:")
+            print(f"   1. Verify model name in llm_generation.yml: {llm_cfg.get('model')}")
+            print(f"   2. Verify API key is valid for {llm_cfg.get('provider', 'auto')} provider")
+            print(f"   3. Check API credentials and permissions")
+            print(f"   4. Review the exact error message above for parameter mismatches")
+            print(f"   5. If using a new model, verify the API supports your requested parameters")
+            raise
+        except Exception as exc:
+            # General exception handling with full traceback for other errors
+            print(f"\n❌ UNEXPECTED ERROR - Stopping immediately:")
+            print(f"   Type: {type(exc).__name__}")
+            print(f"   Message: {exc}")
+            import traceback
+            print(f"\n   Full traceback:")
+            traceback.print_exc()
+            raise
         finally:
             llm_usage = llm_server.get_usage_summary()
             if llm_server.provider == "local":

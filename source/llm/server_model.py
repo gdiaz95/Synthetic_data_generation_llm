@@ -602,14 +602,32 @@ class SingleGPUServer:
        if model_name.lower().startswith("openai/"):
            model_name = model_name.split("/", 1)[1]
 
+       model_name_lower = model_name.lower()
+       is_newer_model = any(newer_model in model_name_lower for newer_model in ["gpt-5", "gpt-o1"])
 
+       # Use max_completion_tokens for newer models (gpt-5, gpt-o1, etc.)
+       max_tokens_value = config.get("max_tokens", 512)
+       if is_newer_model or "gpt-4o-mini" in model_name_lower:
+           token_param = "max_completion_tokens"
+       else:
+           token_param = "max_tokens"
+
+       # Models like gpt-5-mini only support temperature=1.0
+       temp_value = config.get("temperature", 0.7)
+       if is_newer_model:
+           temp_value = 1.0
+
+       # Build payload, excluding unsupported parameters for newer models
        payload = {
            "model": model_name,
            "messages": [{"role": "user", "content": prompt}],
-           "temperature": config.get("temperature", 0.7),
-           "top_p": config.get("top_p", 0.95),
-           "max_tokens": config.get("max_tokens", 512),
+           "temperature": temp_value,
+           token_param: max_tokens_value,
        }
+       
+       # Newer models (gpt-5, gpt-o1) don't support top_p
+       if not is_newer_model:
+           payload["top_p"] = config.get("top_p", 0.95)
 
 
        request = urllib.request.Request(
