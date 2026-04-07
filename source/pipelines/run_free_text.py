@@ -266,10 +266,15 @@ def generate_free_text_column(
         try:
             responses = llm_server.generate_batch(prompts, config=generation_config)
         except APIModelConnectionError as exc:
-            # If it's a systematic API error (unsupported parameter/value), stop immediately
+            # If it's a systematic API error (unsupported parameter/value, quota, etc.), stop immediately
             error_msg = str(exc).lower()
-            if "unsupported_parameter" in error_msg or "unsupported_value" in error_msg:
-                print(f"\n❌ STOPPING: Systematic API configuration error detected on first batch:")
+            if (
+                "unsupported_parameter" in error_msg
+                or "unsupported_value" in error_msg
+                or "insufficient_quota" in error_msg
+                or "quota" in error_msg
+            ):
+                print(f"\n❌ STOPPING: Systematic API error detected on batch:")
                 print(f"   {exc}")
                 raise
             # Otherwise treat as batch failure and continue with single-row fallback
@@ -314,10 +319,15 @@ def generate_free_text_column(
                 cleaned_response = ""
             return cap_words(cleaned_response, max_words_generation), None
         except APIModelConnectionError as exc:
-            # If it's a systematic API error (unsupported parameter/value), stop immediately
+            # If it's a systematic API error (unsupported parameter/value, quota, etc.), stop immediately
             error_msg = str(exc).lower()
-            if "unsupported_parameter" in error_msg or "unsupported_value" in error_msg:
-                print(f"\n❌ STOPPING: Systematic API configuration error detected:")
+            if (
+                "unsupported_parameter" in error_msg
+                or "unsupported_value" in error_msg
+                or "insufficient_quota" in error_msg
+                or "quota" in error_msg
+            ):
+                print(f"\n❌ STOPPING: Systematic API error detected:")
                 print(f"   {exc}")
                 print(f"\n   Row {i} encountered a model compatibility issue.")
                 print(f"   This error affects ALL rows - stopping pipeline immediately.")
