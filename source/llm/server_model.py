@@ -276,6 +276,17 @@ class SingleGPUServer:
                "Add it to your .env file."
            )
 
+       self._openai_client = None
+       try:
+           from openai import OpenAI
+
+
+           self._openai_client = OpenAI(api_key=self.openai_api_key)
+       except (ModuleNotFoundError, ImportError):
+           print(
+               "⚠️  `openai` is not installed. Falling back to OpenAI REST API mode."
+           )
+
 
    def _record_usage(self, prompt_tokens=0, completion_tokens=0, requests=1):
        prompt_tokens = int(prompt_tokens or 0)
@@ -315,13 +326,79 @@ class SingleGPUServer:
 
 
    @staticmethod
-   def _gemini_empty_response_retry_attempts(config):
+   def _request_retry_attempts(config):
+       return max(1, int(config.get("request_retry_attempts", 5)))
+
+
+   @staticmethod
+   def _request_retry_base_sleep(config):
+       return max(0.0, float(config.get("request_retry_base_sleep_sec", 2.0)))
+
+
+   @staticmethod
+   def _empty_response_retry_attempts(config):
        return max(1, int(config.get("empty_response_retry_attempts", 3)))
 
 
    @staticmethod
-   def _gemini_empty_response_retry_sleep(config):
+   def _empty_response_retry_sleep(config):
        return max(0.0, float(config.get("empty_response_retry_sleep_sec", 1.0)))
+
+
+   @staticmethod
+   def _normalize_openai_message_content(content):
+       if isinstance(content, str):
+           return content.strip()
+
+       if not isinstance(content, list):
+           return ""
+
+       text_parts = []
+       for item in content:
+           if isinstance(item, str):
+               if item.strip():
+                   text_parts.append(item.strip())
+               continue
+
+           if isinstance(item, dict):
+               raw_text = item.get("text")
+               if isinstance(raw_text, str) and raw_text.strip():
+                   text_parts.append(raw_text.strip())
+                   continue
+               if isinstance(raw_text, dict):
+                   text_value = raw_text.get("value")
+                   if isinstance(text_value, str) and text_value.strip():
+                       text_parts.append(text_value.strip())
+                       continue
+               if item.get("type") in {"text", "output_text"} and item.get("value"):
+                   text_parts.append(str(item["value"]).strip())
+               continue
+
+           raw_text = getattr(item, "text", None)
+           if isinstance(raw_text, str) and raw_text.strip():
+               text_parts.append(raw_text.strip())
+               continue
+
+           if hasattr(raw_text, "value") and getattr(raw_text, "value", None):
+               text_parts.append(str(raw_text.value).strip())
+               continue
+
+           if hasattr(item, "value") and getattr(item, "value", None):
+               text_parts.append(str(item.value).strip())
+
+       return "\n".join(part for part in text_parts if part).strip()
+
+
+   def _extract_openai_message_text(self, message):
+       if message is None:
+           return ""
+
+       if isinstance(message, dict):
+           return self._normalize_openai_message_content(message.get("content"))
+
+       return self._normalize_openai_message_content(
+           getattr(message, "content", None)
+       )
 
 
    def _format_gemini_sdk_response_diagnostics(self, response):
@@ -404,9 +481,75 @@ class SingleGPUServer:
        return "; ".join(details)
 
 
-   def _retry_gemini_request(self, make_request):
-       max_attempts = 5
-       base_wait_seconds = 2
+   def _format_openai_sdk_response_diagnostics(self, response):
+       details = []
+       choices = getattr(response, "choices", None) or []
+       details.append(f"choice_count={len(choices)}")
+
+       usage = getattr(response, "usage", None)
+       if usage is not None:
+           prompt_tokens = getattr(usage, "prompt_tokens", None)
+           completion_tokens = getattr(usage, "completion_tokens", None)
+           if prompt_tokens is not None:
+               details.append(f"prompt_tokens={prompt_tokens}")
+           if completion_tokens is not None:
+               details.append(f"completion_tokens={completion_tokens}")
+
+       for idx, choice in enumerate(choices[:2]):
+           finish_reason = _stringify_response_value(
+               getattr(choice, "finish_reason", None)
+           )
+           if finish_reason:
+               details.append(f"choice_{idx}_finish_reason={finish_reason}")
+
+           message = getattr(choice, "message", None)
+           refusal = getattr(message, "refusal", None) if message is not None else None
+           if refusal:
+               details.append(f"choice_{idx}_refusal=present")
+
+           text = self._extract_openai_message_text(message)
+           details.append(f"choice_{idx}_has_text={bool(text)}")
+
+       return "; ".join(details)
+
+
+   def _format_openai_rest_response_diagnostics(self, data):
+       details = []
+       choices = data.get("choices") or []
+       details.append(f"choice_count={len(choices)}")
+
+       usage = data.get("usage") or {}
+       if usage:
+           if usage.get("prompt_tokens") is not None:
+               details.append(f"prompt_tokens={usage['prompt_tokens']}")
+           if usage.get("completion_tokens") is not None:
+               details.append(f"completion_tokens={usage['completion_tokens']}")
+
+       for idx, choice in enumerate(choices[:2]):
+           finish_reason = choice.get("finish_reason")
+           if finish_reason:
+               details.append(f"choice_{idx}_finish_reason={finish_reason}")
+
+           message = choice.get("message") or {}
+           if message.get("refusal"):
+               details.append(f"choice_{idx}_refusal=present")
+
+           text = self._extract_openai_message_text(message)
+           details.append(f"choice_{idx}_has_text={bool(text)}")
+
+       return "; ".join(details)
+
+
+   def _retry_api_request(
+       self,
+       provider_name,
+       make_request,
+       config,
+       model_message,
+       network_message,
+   ):
+       max_attempts = self._request_retry_attempts(config)
+       base_wait_seconds = self._request_retry_base_sleep(config)
 
        for attempt in range(1, max_attempts + 1):
            try:
@@ -416,27 +559,24 @@ class SingleGPUServer:
                if self._is_retryable_http_error(exc.code) and attempt < max_attempts:
                    wait_seconds = base_wait_seconds * attempt
                    print(
-                       f"⚠️  Gemini request failed with HTTP {exc.code}. "
+                       f"⚠️  {provider_name} request failed with HTTP {exc.code}. "
                        f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
                    )
                    time.sleep(wait_seconds)
                    continue
                raise APIModelConnectionError(
-                   "Couldn't connect to Gemini API. Check model name and API key. "
-                   f"Details: {details}"
+                   f"{model_message} Details: {details}"
                ) from exc
            except urllib.error.URLError as exc:
                if attempt < max_attempts:
                    wait_seconds = base_wait_seconds * attempt
                    print(
-                       "⚠️  Gemini request failed due to a network error. "
+                       f"⚠️  {provider_name} request failed due to a network error. "
                        f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
                    )
                    time.sleep(wait_seconds)
                    continue
-               raise APIModelConnectionError(
-                   "Couldn't connect to Gemini API. Check network access and API key."
-               ) from exc
+               raise APIModelConnectionError(network_message) from exc
            except Exception as exc:
                status_code = _extract_status_code(exc)
                if status_code is not None:
@@ -444,28 +584,24 @@ class SingleGPUServer:
                    if self._is_retryable_http_error(status_code) and attempt < max_attempts:
                        wait_seconds = base_wait_seconds * attempt
                        print(
-                           f"⚠️  Gemini request failed with HTTP {status_code}. "
+                           f"⚠️  {provider_name} request failed with HTTP {status_code}. "
                            f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})..."
                        )
                        time.sleep(wait_seconds)
                        continue
-                   raise APIModelConnectionError(
-                       "Couldn't connect to Gemini API. Check model name and API key. "
-                       f"Details: {details}"
-                   ) from exc
+                   raise APIModelConnectionError(f"{model_message} Details: {details}") from exc
 
                if attempt < max_attempts:
                    wait_seconds = base_wait_seconds * attempt
                    print(
-                       "⚠️  Gemini request raised an unexpected error. "
+                       f"⚠️  {provider_name} request raised an unexpected error. "
                        f"Retrying in {wait_seconds}s (attempt {attempt}/{max_attempts})... "
                        f"{type(exc).__name__}: {exc}"
                    )
                    time.sleep(wait_seconds)
                    continue
                raise APIModelConnectionError(
-                   "Couldn't connect to Gemini API. Check model name and API key. "
-                   f"Details: {type(exc).__name__}: {exc}"
+                   f"{model_message} Details: {type(exc).__name__}: {exc}"
                ) from exc
 
 
@@ -498,12 +634,18 @@ class SingleGPUServer:
            with urllib.request.urlopen(request, timeout=45) as response:
                return json.loads(response.read().decode("utf-8"))
 
-       empty_response_attempts = self._gemini_empty_response_retry_attempts(config)
-       empty_response_wait = self._gemini_empty_response_retry_sleep(config)
+       empty_response_attempts = self._empty_response_retry_attempts(config)
+       empty_response_wait = self._empty_response_retry_sleep(config)
        diagnostics = "candidate_count=0"
 
        for attempt in range(1, empty_response_attempts + 1):
-           data = self._retry_gemini_request(_request)
+           data = self._retry_api_request(
+               provider_name="Gemini",
+               make_request=_request,
+               config=config,
+               model_message="Couldn't connect to Gemini API. Check model name and API key.",
+               network_message="Couldn't connect to Gemini API. Check network access and API key.",
+           )
 
            usage = data.get("usageMetadata") or {}
            self._record_usage(
@@ -560,12 +702,18 @@ class SingleGPUServer:
            )
 
 
-       empty_response_attempts = self._gemini_empty_response_retry_attempts(config)
-       empty_response_wait = self._gemini_empty_response_retry_sleep(config)
+       empty_response_attempts = self._empty_response_retry_attempts(config)
+       empty_response_wait = self._empty_response_retry_sleep(config)
        diagnostics = "candidate_count=0"
 
        for attempt in range(1, empty_response_attempts + 1):
-           response = self._retry_gemini_request(_request)
+           response = self._retry_api_request(
+               provider_name="Gemini",
+               make_request=_request,
+               config=config,
+               model_message="Couldn't connect to Gemini API. Check model name and API key.",
+               network_message="Couldn't connect to Gemini API. Check network access and API key.",
+           )
 
            usage = getattr(response, "usage_metadata", None)
            if usage is not None:
@@ -603,33 +751,41 @@ class SingleGPUServer:
            model_name = model_name.split("/", 1)[1]
 
        model_name_lower = model_name.lower()
-       is_newer_model = any(newer_model in model_name_lower for newer_model in ["gpt-5", "gpt-o1"])
+       if self._openai_client is None or "gpt-5-mini" in model_name_lower:
+           return self._generate_with_openai_rest(prompt, config, model_name)
+       return self._generate_with_openai_sdk(prompt, config, model_name)
 
-       # Use max_completion_tokens for newer models (gpt-5, gpt-o1, etc.)
-       max_tokens_value = config.get("max_tokens", 512)
-       if is_newer_model or "gpt-4o-mini" in model_name_lower:
-           token_param = "max_completion_tokens"
-       else:
-           token_param = "max_tokens"
 
-       # Models like gpt-5-mini only support temperature=1.0
+   def _build_openai_payload(self, prompt, config, model_name):
+       model_name_lower = model_name.lower()
+       is_newer_model = any(
+           newer_model in model_name_lower for newer_model in ["gpt-5", "gpt-o1"]
+       )
+       uses_max_completion_tokens = is_newer_model or "gpt-4o-mini" in model_name_lower
+
        temp_value = config.get("temperature", 0.7)
        if is_newer_model:
            temp_value = 1.0
 
-       # Build payload, excluding unsupported parameters for newer models
        payload = {
            "model": model_name,
            "messages": [{"role": "user", "content": prompt}],
            "temperature": temp_value,
-           token_param: max_tokens_value,
+           (
+               "max_completion_tokens"
+               if uses_max_completion_tokens
+               else "max_tokens"
+           ): config.get("max_tokens", 512),
        }
-       
-       # Newer models (gpt-5, gpt-o1) don't support top_p
+
        if not is_newer_model:
            payload["top_p"] = config.get("top_p", 0.95)
 
+       return payload
 
+
+   def _generate_with_openai_rest(self, prompt, config, model_name):
+       payload = self._build_openai_payload(prompt, config, model_name)
        request = urllib.request.Request(
            "https://api.openai.com/v1/chat/completions",
            data=json.dumps(payload).encode("utf-8"),
@@ -640,38 +796,103 @@ class SingleGPUServer:
            method="POST",
        )
 
-
-       try:
+       def _request():
            with urllib.request.urlopen(request, timeout=45) as response:
-               data = json.loads(response.read().decode("utf-8"))
-       except urllib.error.HTTPError as exc:
-           details = self._safe_read_http_error(exc)
-           raise APIModelConnectionError(
-               "Couldn't connect to OpenAI API. Check model name and API key. "
-               f"Details: {details}"
-           ) from exc
-       except urllib.error.URLError as exc:
-           raise APIModelConnectionError(
-               "Couldn't connect to OpenAI API. Check network access and API key."
-           ) from exc
+               return json.loads(response.read().decode("utf-8"))
 
-       usage = data.get("usage") or {}
-       self._record_usage(
-           prompt_tokens=usage.get("prompt_tokens", 0),
-           completion_tokens=usage.get("completion_tokens", 0),
-           requests=1,
+       empty_response_attempts = self._empty_response_retry_attempts(config)
+       empty_response_wait = self._empty_response_retry_sleep(config)
+       diagnostics = "choice_count=0"
+
+       for attempt in range(1, empty_response_attempts + 1):
+           data = self._retry_api_request(
+               provider_name="OpenAI",
+               make_request=_request,
+               config=config,
+               model_message="Couldn't connect to OpenAI API. Check model name and API key.",
+               network_message="Couldn't connect to OpenAI API. Check network access and API key.",
+           )
+
+           usage = data.get("usage") or {}
+           self._record_usage(
+               prompt_tokens=usage.get("prompt_tokens", 0),
+               completion_tokens=usage.get("completion_tokens", 0),
+               requests=1,
+           )
+
+           choices = data.get("choices") or []
+           if choices:
+               message = choices[0].get("message") or {}
+               text = self._extract_openai_message_text(message)
+               if text:
+                   return text
+
+           diagnostics = self._format_openai_rest_response_diagnostics(data)
+           if attempt < empty_response_attempts:
+               print(
+                   "⚠️  OpenAI returned an empty response body. "
+                   f"Retrying in {empty_response_wait}s "
+                   f"(attempt {attempt}/{empty_response_attempts})... {diagnostics}"
+               )
+               time.sleep(empty_response_wait)
+               continue
+
+       raise APIModelConnectionError(
+           "OpenAI returned an empty response after retries. "
+           f"Details: {diagnostics}"
        )
 
 
-       choices = data.get("choices") or []
-       if not choices:
-           raise APIModelConnectionError(
-               "OpenAI returned no choices. Check API key/model access."
+   def _generate_with_openai_sdk(self, prompt, config, model_name):
+       payload = self._build_openai_payload(prompt, config, model_name)
+
+       def _request():
+           return self._openai_client.chat.completions.create(**payload)
+
+       empty_response_attempts = self._empty_response_retry_attempts(config)
+       empty_response_wait = self._empty_response_retry_sleep(config)
+       diagnostics = "choice_count=0"
+
+       for attempt in range(1, empty_response_attempts + 1):
+           response = self._retry_api_request(
+               provider_name="OpenAI",
+               make_request=_request,
+               config=config,
+               model_message="Couldn't connect to OpenAI API. Check model name and API key.",
+               network_message="Couldn't connect to OpenAI API. Check network access and API key.",
            )
 
+           usage = getattr(response, "usage", None)
+           if usage is not None:
+               self._record_usage(
+                   prompt_tokens=getattr(usage, "prompt_tokens", 0),
+                   completion_tokens=getattr(usage, "completion_tokens", 0),
+                   requests=1,
+               )
+           else:
+               self._record_usage(requests=1)
 
-       message = choices[0].get("message", {})
-       return (message.get("content") or "").strip()
+           choices = getattr(response, "choices", None) or []
+           if choices:
+               message = getattr(choices[0], "message", None)
+               text = self._extract_openai_message_text(message)
+               if text:
+                   return text
+
+           diagnostics = self._format_openai_sdk_response_diagnostics(response)
+           if attempt < empty_response_attempts:
+               print(
+                   "⚠️  OpenAI returned an empty response body. "
+                   f"Retrying in {empty_response_wait}s "
+                   f"(attempt {attempt}/{empty_response_attempts})... {diagnostics}"
+               )
+               time.sleep(empty_response_wait)
+               continue
+
+       raise APIModelConnectionError(
+           "OpenAI returned an empty response after retries. "
+           f"Details: {diagnostics}"
+       )
 
 
    def cleanup(self):
