@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from source.llm.server_model import SingleGPUServer
+from source.llm.server_model import APIModelConnectionError, SingleGPUServer
 
 
 REAL_LABEL = "real"
@@ -177,7 +177,10 @@ def _run_prompts(
     total_batches = math.ceil(len(prompts) / batch_size)
     for batch_index, start in enumerate(range(0, len(prompts), batch_size), start=1):
         batch_prompts = prompts[start : start + batch_size]
-        responses.extend(llm_server.generate_batch(batch_prompts, config=generation_config))
+        try:
+            responses.extend(llm_server.generate_batch(batch_prompts, config=generation_config))
+        except APIModelConnectionError:
+            responses.extend([""] * len(batch_prompts))
         if progress_label:
             _print_progress_bar(progress_label, batch_index, total_batches)
     return responses
