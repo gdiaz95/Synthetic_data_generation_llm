@@ -168,6 +168,7 @@ class SingleGPUServer:
        self._usage_totals = {
            "prompt_tokens": 0,
            "completion_tokens": 0,
+           "thinking_tokens": 0,
            "requests": 0,
        }
 
@@ -288,13 +289,15 @@ class SingleGPUServer:
            )
 
 
-   def _record_usage(self, prompt_tokens=0, completion_tokens=0, requests=1):
+   def _record_usage(self, prompt_tokens=0, completion_tokens=0, thinking_tokens=0, requests=1):
        prompt_tokens = int(prompt_tokens or 0)
        completion_tokens = int(completion_tokens or 0)
+       thinking_tokens = int(thinking_tokens or 0)
        requests = int(requests or 0)
        with self._usage_lock:
            self._usage_totals["prompt_tokens"] += max(0, prompt_tokens)
            self._usage_totals["completion_tokens"] += max(0, completion_tokens)
+           self._usage_totals["thinking_tokens"] += max(0, thinking_tokens)
            self._usage_totals["requests"] += max(0, requests)
 
 
@@ -302,11 +305,13 @@ class SingleGPUServer:
        with self._usage_lock:
            prompt_tokens = int(self._usage_totals["prompt_tokens"])
            completion_tokens = int(self._usage_totals["completion_tokens"])
+           thinking_tokens = int(self._usage_totals["thinking_tokens"])
            requests = int(self._usage_totals["requests"])
        return {
            "prompt_tokens": prompt_tokens,
            "completion_tokens": completion_tokens,
-           "total_tokens": prompt_tokens + completion_tokens,
+           "thinking_tokens": thinking_tokens,
+           "total_tokens": prompt_tokens + completion_tokens + thinking_tokens,
            "requests": requests,
        }
 
@@ -607,10 +612,13 @@ class SingleGPUServer:
 
    def _generate_with_gemini_rest(self, prompt, config, model_name):
        generation_cfg = {
-       "temperature": config.get("temperature", 0.7),
-       "topP": config.get("top_p", 0.95),
-       "maxOutputTokens": config.get("max_tokens", 512),
+           "temperature": config.get("temperature", 0.7),
+           "topP": config.get("top_p", 0.95),
+           "maxOutputTokens": config.get("max_tokens", 512),
        }
+       thinking_budget = config.get("thinking_budget")
+       if thinking_budget is not None:
+           generation_cfg["thinkingConfig"] = {"thinkingBudget": int(thinking_budget)}
 
        payload = {
            "contents": [{"parts": [{"text": prompt}]}],
@@ -651,13 +659,18 @@ class SingleGPUServer:
            self._record_usage(
                prompt_tokens=usage.get("promptTokenCount", 0),
                completion_tokens=usage.get("candidatesTokenCount", 0),
+               thinking_tokens=usage.get("thoughtsTokenCount", 0),
                requests=1,
            )
 
            candidates = data.get("candidates") or []
            if candidates:
                parts = candidates[0].get("content", {}).get("parts", [])
-               text_parts = [part.get("text", "") for part in parts if part.get("text")]
+               # Exclude thinking parts (thought=true) so only visible output is returned.
+               text_parts = [
+                   part.get("text", "") for part in parts
+                   if part.get("text") and not part.get("thought", False)
+               ]
                text = "\n".join(text_parts).strip()
                if text:
                    return text
@@ -693,6 +706,9 @@ class SingleGPUServer:
            "top_p": config.get("top_p", 0.95),
            "max_output_tokens": config.get("max_tokens", 512),
        }
+       thinking_budget = config.get("thinking_budget")
+       if thinking_budget is not None:
+           generation_config["thinking_config"] = {"thinking_budget": int(thinking_budget)}
 
        def _request():
            return self._gemini_client.models.generate_content(
@@ -720,6 +736,7 @@ class SingleGPUServer:
                self._record_usage(
                    prompt_tokens=getattr(usage, "prompt_token_count", 0),
                    completion_tokens=getattr(usage, "candidates_token_count", 0),
+                   thinking_tokens=getattr(usage, "thoughts_token_count", 0),
                    requests=1,
                )
            else:

@@ -42,8 +42,18 @@ def _safe_model_name(model_name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", model_name).strip("-") or "model"
 
 
-def _resolve_path(template: str, *, dataset_name: str, model: str) -> Path:
-    return Path(template.format(dataset_name=dataset_name, model=_safe_model_name(model)))
+def _resolve_path(template: str, *, dataset_name: str, model: str, judge_model: str = "") -> Path:
+    safe_gen = _safe_model_name(model)
+    # {llm_judge.model} contains a dot so Python's str.format() can't resolve it directly.
+    # Pre-substitute it: include the judge model only when it differs from the generator.
+    if judge_model and judge_model != model:
+        llm_judge_sub = _safe_model_name(judge_model)
+    else:
+        llm_judge_sub = ""
+    resolved = template.replace("{llm_judge.model}", llm_judge_sub)
+    resolved = re.sub(r"__+", "_", resolved)       # collapse double underscores from empty sub
+    resolved = re.sub(r"_+\.", ".", resolved)       # remove trailing underscore before extension
+    return Path(resolved.format(dataset_name=dataset_name, model=safe_gen, generator_model=safe_gen))
 
 
 def _dataset_name_from_path(input_csv: Path) -> str:
@@ -140,13 +150,13 @@ def main() -> None:
     cfg = _read_yaml(args.config)
 
     dataset_name = args.dataset_name or cfg.get("dataset_name")
-    model = cfg.get("model")
+    model = cfg.get("generator_model") or cfg.get("model")
     real_template = cfg.get("real_data_path")
     synthetic_template = cfg.get("synthetic_data_path")
     output_template = cfg.get("report_output_path")
 
     if not isinstance(model, str) or not model.strip():
-        raise ValueError("metrics.yml must include a non-empty string key: model")
+        raise ValueError("metrics.yml must include a non-empty string key: generator_model")
 
     if (
         not isinstance(real_template, str)
@@ -231,9 +241,10 @@ def main() -> None:
         target_column = str(cfg_target_column).strip() if cfg_target_column else None
         print(f"Metadata JSON not found at {metadata_path}; using free_text_columns from config.")
 
+    judge_model_name = judge_cfg.get("model", "").strip() if judge_enabled else ""
     real_path = _resolve_path(real_template, dataset_name=dataset_name, model=model)
     synthetic_path = _resolve_path(synthetic_template, dataset_name=dataset_name, model=model)
-    output_path = _resolve_path(output_template, dataset_name=dataset_name, model=model)
+    output_path = _resolve_path(output_template, dataset_name=dataset_name, model=model, judge_model=judge_model_name)
 
     if not real_path.exists():
         raise FileNotFoundError(f"Real data not found at: {real_path}")

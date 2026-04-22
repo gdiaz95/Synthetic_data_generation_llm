@@ -1,5 +1,5 @@
-# model: gemini-3.1-flash-lite-preview
-model: gpt-4o-mini
+model: gemini-3.1-flash-lite-preview
+# model: gpt-4o-mini
 # model: gpt-5-mini
 # Gemini Flash 3 model options (switch by uncommenting one):
 # model: gemini-3-flash-preview

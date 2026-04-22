@@ -38,14 +38,20 @@ class LLMJudgeSummary:
     true_synthetic_predicted_synthetic: int
 
 
-def _default_generation_config(batch_size: int) -> dict[str, Any]:
-    return {
+def _default_generation_config(batch_size: int, thinking_budget: int | None = None) -> dict[str, Any]:
+    # Thinking models count thinking tokens against max_output_tokens, so 48 is
+    # exhausted before any visible output is produced. Use a larger budget.
+    max_tokens = 4096 if thinking_budget is not None else 48
+    config: dict[str, Any] = {
         "temperature": 0.0,
         "top_p": 1.0,
-        "max_tokens": 48,
+        "max_tokens": max_tokens,
         "batch_size": max(1, int(batch_size)),
         "stop_sequences": ["\n\n"],
     }
+    if thinking_budget is not None:
+        config["thinking_budget"] = int(thinking_budget)
+    return config
 
 
 def _build_server(judge_cfg: dict[str, Any]) -> SingleGPUServer:
@@ -160,12 +166,13 @@ def _run_prompts(
     prompts: list[str],
     *,
     batch_size: int,
+    thinking_budget: int | None = None,
     progress_label: str | None = None,
 ) -> list[str]:
     if not prompts:
         return []
 
-    generation_config = _default_generation_config(batch_size=batch_size)
+    generation_config = _default_generation_config(batch_size=batch_size, thinking_budget=thinking_budget)
     responses: list[str] = []
     total_batches = math.ceil(len(prompts) / batch_size)
     for batch_index, start in enumerate(range(0, len(prompts), batch_size), start=1):
@@ -255,6 +262,8 @@ def evaluate_llm_judge(
     batch_size = max(1, int(judge_cfg.get("batch_size", 8)))
     max_examples_per_class = max(1, int(judge_cfg.get("max_examples_per_class", 128)))
     random_state = int(judge_cfg.get("random_state", 42))
+    thinking_budget_raw = judge_cfg.get("thinking_budget")
+    thinking_budget: int | None = int(thinking_budget_raw) if thinking_budget_raw is not None else None
 
     server = _build_server(judge_cfg)
     try:
@@ -294,6 +303,7 @@ def evaluate_llm_judge(
                     server,
                     prompts,
                     batch_size=batch_size,
+                    thinking_budget=thinking_budget,
                     progress_label=f"{column_name}",
                 )
                 predicted_labels = [_extract_label(prediction) for prediction in raw_predictions]
@@ -322,6 +332,7 @@ def evaluate_llm_judge(
             server,
             row_prompts,
             batch_size=batch_size,
+            thinking_budget=thinking_budget,
             progress_label="whole_row",
         )
         row_predicted_labels = [_extract_label(prediction) for prediction in row_raw_predictions]

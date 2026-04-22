@@ -1,16 +1,32 @@
 # Identifiers used for report naming and path templating.
 dataset_name: adult_with_three
-# model: gemini-3.1-flash-lite-preview
-model: gpt-4o-mini
+generator_model: gemini-3.1-flash-lite-preview
+# model: gpt-4o-mini
 # model: gpt-5-mini
 # Real/original dataset path.
 real_data_path: data/raw/{dataset_name}.csv
 
 # Synthetic dataset path.
-synthetic_data_path: data/processed/{dataset_name}_{model}.csv
+synthetic_data_path: data/processed/{dataset_name}_{generator_model}.csv
+
+# Optional LLM-as-a-judge metrics.
+# When enabled, the pipeline classifies balanced real-holdout vs synthetic examples
+# for each free-text column and for full rows, then stores the resulting accuracy
+# statistics in the report JSON.
+llm_judge:
+  enabled: true
+  # model/provider here override configs/llm_generation.yml for the judge only.
+  # Reasoning options: gemini-3.1-pro-preview, gemini-2.5-pro, gemini-2.5-flash
+  # thinking_budget: -1 = dynamic (model decides). Set 0 to disable. Remove line for non-thinking models.
+  model: gemini-2.5-pro
+  thinking_budget: -1
+  max_examples_per_class: 128
+  batch_size: 8
+  random_state: 42
+
 
 # Output report path for structured-column metrics.
-report_output_path: reports/{dataset_name}_{model}_structured_metrics.json
+report_output_path: reports/{dataset_name}_{generator_model}_{llm_judge.model}_structured_metrics.json
 
 # Free-text columns to exclude from metrics for now.
 # If .metadata/{dataset_name}/metadata.json exists, it overrides this list.
@@ -39,13 +55,3 @@ tstr_structured_weight: 1.0
 tstr_text_weight_default: 0.01
 tstr_text_weight_by_column: {}
 
-# Optional LLM-as-a-judge metrics.
-# When enabled, the pipeline classifies balanced real-holdout vs synthetic examples
-# for each free-text column and for full rows, then stores the resulting accuracy
-# statistics in the report JSON.
-llm_judge:
-  enabled: true
-  # model/provider default to configs/llm_generation.yml when omitted.
-  max_examples_per_class: 128
-  batch_size: 8
-  random_state: 42
