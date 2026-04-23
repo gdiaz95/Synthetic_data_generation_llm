@@ -1,7 +1,7 @@
 # Identifiers used for report naming and path templating.
 dataset_name: adult_with_three
-generator_model: gemini-3.1-flash-lite-preview
-# model: gpt-4o-mini
+# generator_model: gemini-3.1-flash-lite-preview
+generator_model: gpt-4o-mini
 # model: gpt-5-mini
 # Real/original dataset path.
 real_data_path: data/raw/{dataset_name}.csv
