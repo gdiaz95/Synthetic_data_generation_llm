@@ -21,6 +21,12 @@ META_PHRASES = [
     "ignore previous",
     "return only",
     "here's your requested",
+    # Leaked LLM instruction phrases found in neighbor data
+    "focus on mimicking",
+    "to sound human",
+    "aim for consistency",
+    "to apply, just",
+    "here goes:",
 ]
 
 
@@ -144,36 +150,50 @@ def generate_free_text_column(
     generated[text_column] = ""
 
     total_rows = len(generated)
+    is_local = llm_server.provider == "local"
     batch_size = max(1, int(llm_cfg.get("batch_size", 1)))
+    sleep_sec = float(llm_cfg.get("sleep_sec", 1.0))
     max_words_generation = int(
         llm_cfg.get("max_words_generation", llm_cfg.get("max_words", 80))
     )
     max_words_reader = int(llm_cfg.get("max_words_reader", prompt_cfg.get("max_words_reader", 250)))
-    
+
+    # Apply local-vLLM overrides when running on a local model.
+    if is_local:
+        if "batch_size_local" in llm_cfg:
+            batch_size = max(1, int(llm_cfg["batch_size_local"]))
+        if "sleep_sec_local" in llm_cfg:
+            sleep_sec = float(llm_cfg["sleep_sec_local"])
+
     # Adjust parameters for models that don't support certain values
     temp_value = float(llm_cfg["temperature"])
     model_name = llm_cfg.get("model", "").lower()
     is_newer_model = any(newer_model in model_name for newer_model in ["gpt-5", "gpt-o1"])
-    
+
     if is_newer_model:
         temp_value = 1.0
-    
+
+    max_tokens = int(llm_cfg["max_tokens"])
+    if is_local and "max_tokens_local" in llm_cfg:
+        max_tokens = int(llm_cfg["max_tokens_local"])
+
     generation_config = {
         "temperature": temp_value,
-        "max_tokens": int(llm_cfg["max_tokens"]),
+        "max_tokens": max_tokens,
         "stop_sequences": llm_cfg.get("stop_sequences"),
     }
-    
+
     # Newer models don't support top_p
     if not is_newer_model:
         generation_config["top_p"] = float(llm_cfg["top_p"])
-    
+
     print(f"- Total rows to generate: {total_rows}")
-    print(f"- Batch size: {batch_size}")
+    print(f"- Batch size: {batch_size}" + (" [local override]" if is_local and "batch_size_local" in llm_cfg else ""))
+    print(f"- Sleep between batches: {sleep_sec}s" + (" [local override]" if is_local and "sleep_sec_local" in llm_cfg else ""))
     print(f"- K neighbors used in prompts: {int(llm_cfg['k_neighbors'])}")
     config_str = (
         f"temperature={generation_config['temperature']}, "
-        f"max_tokens={generation_config['max_tokens']}"
+        f"max_tokens={generation_config['max_tokens']}" + (" [local override]" if is_local and "max_tokens_local" in llm_cfg else "")
     )
     if "top_p" in generation_config:
         config_str += f", top_p={generation_config['top_p']}"
@@ -361,7 +381,7 @@ def generate_free_text_column(
                 generated.at[generated.index[i], text_column] = text
             failed_rows.update(batch_failures)
 
-            time.sleep(float(llm_cfg["sleep_sec"]))
+            time.sleep(sleep_sec)
 
         return generated, failed_rows
 
@@ -400,7 +420,7 @@ def generate_free_text_column(
                         f"  • Shard {shard_id + 1} batch {batch_num}: "
                         f"generated {len(batch_indices)} row(s)."
                     )
-                time.sleep(float(llm_cfg["sleep_sec"]))
+                time.sleep(sleep_sec)
             return shard_id, shard_updates, shard_failures
 
         failed_rows: dict[int, str] = {}
@@ -456,7 +476,7 @@ def generate_free_text_column(
                     generated.at[generated.index[i], text_column] = text
                 else:
                     next_failures[i] = error or "No response was returned for this row."
-                time.sleep(float(llm_cfg["sleep_sec"]))
+                time.sleep(sleep_sec)
 
             recovered = len(remaining_failures) - len(next_failures)
             print(

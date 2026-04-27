@@ -70,6 +70,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force eager execution in local vLLM backend (usually slower).",
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Auto-approve all confirmations. Also set via auto_yes: true in llm_generation.yml.",
+    )
+    parser.add_argument(
+        "--gpu-index",
+        type=int,
+        default=None,
+        help="Force a specific GPU index for local vLLM (bypasses auto free-GPU selection).",
+    )
 
     return parser.parse_args()
 
@@ -163,7 +174,10 @@ def _write_run_log(output_csv: Path, run_details: dict[str, Any]) -> Path:
     return log_path
 
 
-def _confirm_yes_no(prompt: str, *, non_interactive_message: str) -> bool:
+def _confirm_yes_no(prompt: str, *, non_interactive_message: str, auto_yes: bool = False) -> bool:
+    if auto_yes:
+        print(f"[--yes] Auto-approving: {prompt.strip()}")
+        return True
     if not sys.stdin.isatty():
         print(non_interactive_message)
         return False
@@ -171,7 +185,7 @@ def _confirm_yes_no(prompt: str, *, non_interactive_message: str) -> bool:
     return answer in {"y", "yes"}
 
 
-def _confirm_llm_billing() -> bool:
+def _confirm_llm_billing(auto_yes: bool = False) -> bool:
     prompt = (
         "LLM generation can trigger external API billing before tabular generation runs with KNN retrieval. "
         "Do you want to continue with LLM generation? [y/N]: "
@@ -179,14 +193,16 @@ def _confirm_llm_billing() -> bool:
     return _confirm_yes_no(
         prompt,
         non_interactive_message="Non-interactive session detected; defaulting to NO for billable LLM generation.",
+        auto_yes=auto_yes,
     )
 
 
-def _confirm_tabular_only_generation() -> bool:
+def _confirm_tabular_only_generation(auto_yes: bool = False) -> bool:
     prompt = "Do you want to generate tabular data only and save it without the LLM model suffix? [y/N]: "
     return _confirm_yes_no(
         prompt,
         non_interactive_message="Non-interactive session detected; defaulting to NO for tabular-only generation.",
+        auto_yes=auto_yes,
     )
 
 
@@ -533,9 +549,11 @@ def main() -> None:
     print(f"- resolved max_words_generation: {max_words_generation}")
     print(f"- target_column: {target_column or '(none)'}")
 
+    auto_yes = args.yes or bool(llm_cfg.get("auto_yes", False))
+
     should_run_llm = bool(text_columns)
     tabular_only_mode = False
-    if should_run_llm and not _confirm_llm_billing():
+    if should_run_llm and not _confirm_llm_billing(auto_yes=auto_yes):
         if _confirm_tabular_only_generation():
             tabular_only_mode = True
             should_run_llm = False
@@ -589,6 +607,7 @@ def main() -> None:
             utilization=float(llm_cfg["gpu_memory_utilization"]),
             max_len=int(llm_cfg["max_model_len"]),
             enforce_eager=bool(llm_cfg.get("enforce_eager", False) or args.enforce_eager),
+            gpu_index=args.gpu_index,
         )
         try:
             llm_server = SingleGPUServer(server_args)

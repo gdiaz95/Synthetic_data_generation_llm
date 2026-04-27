@@ -163,6 +163,7 @@ class SingleGPUServer:
        self.gpu_util = args.utilization
        self.max_len = args.max_len
        self.enforce_eager = bool(getattr(args, "enforce_eager", False))
+       self.forced_gpu_index = getattr(args, "gpu_index", None)
        self.llm = None
        self._usage_lock = threading.Lock()
        self._usage_totals = {
@@ -205,16 +206,23 @@ class SingleGPUServer:
 
 
    def _init_local_vllm(self):
-       selected_gpu = select_free_gpu(self.gpu_util)
+       if self.forced_gpu_index is not None:
+           gpu_index = int(self.forced_gpu_index)
+           print(f"🖥️  Using forced GPU {gpu_index} (--gpu-index override)")
+       else:
+           selected_gpu = select_free_gpu(self.gpu_util)
+           gpu_index = selected_gpu.index
+           print(
+               f"🖥️  Selected GPU {gpu_index} | total={selected_gpu.total_mb}MB"
+               f" | used={selected_gpu.used_mb}MB"
+               f" | target_utilization={self.gpu_util}"
+               f" (~{int(selected_gpu.total_mb * self.gpu_util)}MB usable)"
+           )
 
-
-       # Runtime-only assignment to force vLLM onto one selected GPU.
-       # We no longer require CUDA_VISIBLE_DEVICES in .env.
-       os.environ["CUDA_VISIBLE_DEVICES"] = str(selected_gpu.index)
-
+       os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_index)
 
        print("🚀 Initializing local vLLM backend")
-       print(f"📍 GPU: {selected_gpu.index} (single GPU mode)")
+       print(f"📍 GPU: {gpu_index} (single GPU mode)")
 
 
        try:
@@ -972,6 +980,7 @@ class SingleGPUServer:
            return [self._generate_with_openai(prompt, config) for prompt in prompts]
 
 
+       # --- local vLLM only (gemini/openai returned above) ---
        stop_sequences = config.get("stop_sequences")
        if stop_sequences is None:
            stop_sequences = self._default_local_stop_sequences()
@@ -984,6 +993,31 @@ class SingleGPUServer:
            stop=stop_sequences,
        )
 
+       # Apply the model's native chat template so instruction-tuned models
+       # receive system/user/assistant roles instead of a raw text string.
+       # This eliminates preambles ("Here goes:", "Sure, here's...", etc.)
+       # that appear when the model tries to reason about a raw prompt.
+       tokenizer = self.llm.get_tokenizer()
+       if hasattr(tokenizer, "apply_chat_template"):
+           system_msg = (
+               "Output ONLY what is requested. "
+               "No preamble, no explanation, no meta-commentary. "
+               "Your first token is the first token of the actual response."
+           )
+           formatted: list[str] = []
+           for prompt in prompts:
+               messages = [
+                   {"role": "system", "content": system_msg},
+                   {"role": "user", "content": prompt},
+               ]
+               formatted.append(
+                   tokenizer.apply_chat_template(
+                       messages,
+                       tokenize=False,
+                       add_generation_prompt=True,
+                   )
+               )
+           prompts = formatted
 
        outputs = self.llm.generate(prompts, sampling_params)
        prompt_tokens = 0

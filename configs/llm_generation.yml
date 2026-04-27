@@ -40,6 +40,15 @@ stop_sequences:
 sleep_sec: 1.0
 batch_size: 8
 
+# Local vLLM overrides — only used when provider resolves to "local".
+# max_tokens_local: keeps generation short (90 words ≈ 120 tokens; 256 is a safe ceiling).
+# sleep_sec_local:  no API rate limit locally, so 0.0 is fine.
+# batch_size_local: vLLM batches efficiently; 32 saturates a 49 GB GPU well.
+# print_sample_responses: print this many raw model outputs from the first batch per column (0 = off).
+max_tokens_local: 320
+sleep_sec_local: 0.0
+batch_size_local: 64
+
 # Optional: print one detailed per-batch line every N batches (0 disables).
 batch_log_every: 0
 
