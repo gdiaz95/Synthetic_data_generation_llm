@@ -586,6 +586,10 @@ def main() -> None:
             )
 
     _k0_mode = int(llm_cfg.get('k_neighbors', 5)) == 0
+    _LARGE_DATASET_MAX_ROWS = {"Kickstarter": 20000, "Airbnb": 20000, "consumer_complaint": 20000}
+    max_synthetic_rows = _LARGE_DATASET_MAX_ROWS.get(dataset_name)
+    if max_synthetic_rows:
+        print(f"- Capping synthetic rows at {max_synthetic_rows} for dataset '{dataset_name}'")
     print("\n[1/3] Running tabular data generation...")
     tabular_result = run_tabular_generation(
         df,
@@ -593,6 +597,7 @@ def main() -> None:
         text_columns=text_columns,
         feature_weights=feature_weights,
         compute_knn=should_run_llm and not _k0_mode,
+        max_rows=max_synthetic_rows,
     )
     knn_shape = None if tabular_result.nn_idx is None else tabular_result.nn_idx.shape
     print(
