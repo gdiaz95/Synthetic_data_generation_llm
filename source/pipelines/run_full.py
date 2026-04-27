@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import re
 from typing import Any
+import numpy as np
 import pandas as pd
 import yaml
 from dotenv import load_dotenv
@@ -80,6 +81,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Force a specific GPU index for local vLLM (bypasses auto free-GPU selection).",
+    )
+    parser.add_argument(
+        "--k-neighbors",
+        type=int,
+        default=None,
+        help="Override k_neighbors for LLM prompts only (0 = no neighbors, ablation). Appends _k0 to output filename.",
     )
 
     return parser.parse_args()
@@ -501,6 +508,9 @@ def main() -> None:
     neighbor_k = int(tabular_cfg['knn_k'])
     print(f"- shared neighbor_k (from tabular.knn_k): {neighbor_k}")
     llm_cfg['k_neighbors'] = neighbor_k
+    if args.k_neighbors is not None:
+        llm_cfg['k_neighbors'] = args.k_neighbors
+        print(f"- k_neighbors overridden to {args.k_neighbors} via --k-neighbors (ablation)")
     print(f"- tabular epsilon: {tabular_cfg['epsilon']}")
     print(f"- enforce_min_max_values: {tabular_cfg['enforce_min_max_values']}")
     print(f"- llm model: {llm_cfg['model']}")
@@ -575,13 +585,14 @@ def main() -> None:
                 f"Please check the parallel {parallel_parameter_name}; it is currently larger than the dataset size."
             )
 
+    _k0_mode = int(llm_cfg.get('k_neighbors', 5)) == 0
     print("\n[1/3] Running tabular data generation...")
     tabular_result = run_tabular_generation(
         df,
         tabular_cfg,
         text_columns=text_columns,
         feature_weights=feature_weights,
-        compute_knn=should_run_llm,
+        compute_knn=should_run_llm and not _k0_mode,
     )
     knn_shape = None if tabular_result.nn_idx is None else tabular_result.nn_idx.shape
     print(
@@ -599,7 +610,11 @@ def main() -> None:
         "requests": 0,
     }
     text_vector_blocks: dict[str, dict[str, pd.DataFrame]] = {}
-    stage_nn_idx = tabular_result.nn_idx
+    stage_nn_idx = (
+        np.empty((len(generated), 0), dtype=np.int64)
+        if _k0_mode
+        else tabular_result.nn_idx
+    )
     if should_run_llm:
         server_args = SimpleNamespace(
             model=llm_cfg["model"],
@@ -630,7 +645,10 @@ def main() -> None:
             print("\n[2/3] Running LLM free-text generation...")
             for stage_idx, text_column in enumerate(text_columns, start=1):
                 print(f"\n  -> Free-text stage {stage_idx}/{len(text_columns)} for column '{text_column}'")
-                if text_vector_blocks:
+                if _k0_mode:
+                    stage_nn_idx = np.empty((len(generated), 0), dtype=np.int64)
+                    print("     k=0 ablation mode: no neighbor context.")
+                elif text_vector_blocks:
                     weighted_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] = []
                     for prev_col, block in text_vector_blocks.items():
                         beta = float(distance_beta_by_column.get(prev_col, distance_beta_default))
@@ -705,6 +723,8 @@ def main() -> None:
     print("[3/3] Saving generated dataset...")
     if output_model_name is not None:
         output_csv = _with_model_suffix(output_csv, output_model_name)
+    if _k0_mode:
+        output_csv = output_csv.with_name(output_csv.stem + "_k0" + output_csv.suffix)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     generated.to_csv(output_csv, index=False)
     print(f"✅ Saved synthetic dataset to: {output_csv}")
