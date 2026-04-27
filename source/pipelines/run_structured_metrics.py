@@ -87,11 +87,14 @@ def _load_metadata(path: Path) -> dict[str, Any] | None:
     return payload
 
 
-def _confirm_llm_billing() -> bool:
+def _confirm_llm_billing(auto_yes: bool = False) -> bool:
     prompt = (
         "LLM judge evaluation can trigger external API billing. "
         "Do you want to continue with LLM judge metrics? [y/N]: "
     )
+    if auto_yes:
+        print(f"[--yes] Auto-approving: {prompt.strip()}")
+        return True
     if not sys.stdin.isatty():
         print("Non-interactive session detected; defaulting to NO for billable LLM judge metrics.")
         return False
@@ -141,6 +144,23 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Dataset identifier to override dataset_name from metrics.yml.",
     )
+    parser.add_argument(
+        "--generator-model",
+        type=str,
+        default=None,
+        help="Override generator_model from metrics.yml.",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Auto-approve LLM billing confirmation.",
+    )
+    parser.add_argument(
+        "--gpu-index",
+        type=int,
+        default=None,
+        help="Force a specific GPU for the local vLLM judge (bypasses auto selection).",
+    )
     return parser.parse_args()
 
 
@@ -150,7 +170,7 @@ def main() -> None:
     cfg = _read_yaml(args.config)
 
     dataset_name = args.dataset_name or cfg.get("dataset_name")
-    model = cfg.get("generator_model") or cfg.get("model")
+    model = args.generator_model or cfg.get("generator_model") or cfg.get("model")
     real_template = cfg.get("real_data_path")
     synthetic_template = cfg.get("synthetic_data_path")
     output_template = cfg.get("report_output_path")
@@ -192,6 +212,8 @@ def main() -> None:
             "provider": str(judge_cfg.get("provider") or fallback_judge_cfg.get("provider") or "auto").strip()
             or "auto",
         }
+        if args.gpu_index is not None:
+            judge_cfg["gpu_index"] = args.gpu_index
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -251,7 +273,8 @@ def main() -> None:
     if not synthetic_path.exists():
         raise FileNotFoundError(f"Synthetic data not found at: {synthetic_path}")
 
-    llm_billing_approved = _confirm_llm_billing() if judge_enabled else False
+    auto_yes = args.yes or bool(judge_cfg.get("auto_yes", False))
+    llm_billing_approved = _confirm_llm_billing(auto_yes=auto_yes) if judge_enabled else False
 
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)

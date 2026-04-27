@@ -66,6 +66,7 @@ def _build_server(judge_cfg: dict[str, Any]) -> SingleGPUServer:
         utilization=float(judge_cfg.get("gpu_memory_utilization", 0.8)),
         max_len=int(judge_cfg.get("max_model_len", 4096)),
         enforce_eager=bool(judge_cfg.get("enforce_eager", False)),
+        gpu_index=judge_cfg.get("gpu_index", None),
     )
     return SingleGPUServer(args)
 

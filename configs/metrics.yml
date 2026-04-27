@@ -1,7 +1,8 @@
 # Identifiers used for report naming and path templating.
 dataset_name: adult_with_three
 # generator_model: gemini-3.1-flash-lite-preview
-generator_model: gpt-4o-mini
+# generator_model: gpt-4o-mini
+generator_model: Qwen/Qwen2.5-14B-Instruct
 # model: gpt-5-mini
 # Real/original dataset path.
 real_data_path: data/raw/{dataset_name}.csv
@@ -15,14 +16,18 @@ synthetic_data_path: data/processed/{dataset_name}_{generator_model}.csv
 # statistics in the report JSON.
 llm_judge:
   enabled: true
-  # model/provider here override configs/llm_generation.yml for the judge only.
-  # Reasoning options: gemini-3.1-pro-preview, gemini-2.5-pro, gemini-2.5-flash
-  # thinking_budget: -1 = dynamic (model decides). Set 0 to disable. Remove line for non-thinking models.
+  # Local Qwen self-judge (generator == judge).
+  # model: Qwen/Qwen2.5-14B-Instruct
+  # provider: local
   model: gemini-2.5-pro
   thinking_budget: -1
   max_examples_per_class: 128
-  batch_size: 8
+  batch_size: 32
   random_state: 42
+  # Reasoning options (API): gemini-3.1-pro-preview, gemini-2.5-pro, gemini-2.5-flash
+  # thinking_budget: -1 = dynamic (model decides). Set 0 to disable. Remove line for non-thinking models.
+  # model: gemini-2.5-pro
+  # thinking_budget: -1
 
 
 # Output report path for structured-column metrics.
