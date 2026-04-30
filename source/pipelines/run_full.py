@@ -586,7 +586,7 @@ def main() -> None:
             )
 
     _k0_mode = int(llm_cfg.get('k_neighbors', 5)) == 0
-    _LARGE_DATASET_MAX_ROWS = {"Kickstarter": 20000, "Airbnb": 20000, "consumer_complaint": 20000}
+    _LARGE_DATASET_MAX_ROWS = {"Kickstarter": 20000, "Airbnb": 20000, "consumer_complaint": 20000, "Spotify": 20000}
     max_synthetic_rows = _LARGE_DATASET_MAX_ROWS.get(dataset_name)
     if max_synthetic_rows:
         print(f"- Capping synthetic rows at {max_synthetic_rows} for dataset '{dataset_name}'")

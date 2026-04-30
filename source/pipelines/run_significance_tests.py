@@ -30,6 +30,12 @@ from scipy.stats import binomtest, norm
 REPORTS_DIR = pathlib.Path("reports")
 OUTPUT_JSON = pathlib.Path("reports/significance_tests.json")
 
+# Only datasets that have free-text columns — k=0 vs k=5 is meaningless for structured-only.
+FREE_TEXT_DATASETS = {
+    "adult_with_three", "fake_job_postings", "harvard_reviews",
+    "netflix_titles", "Kickstarter", "Airbnb", "consumer_complaint",
+}
+
 
 # ---------------------------------------------------------------------------
 # Data structure
@@ -345,6 +351,60 @@ def build_cross_judge(evals: list[JudgeEval]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# k=0 vs k=5 ablation
+# ---------------------------------------------------------------------------
+
+def build_k0_ablation(evals: list[JudgeEval]) -> dict:
+    """
+    Paired comparison of whole_row LLM judge accuracy: k=5 vs k=0 neighbors.
+    Only uses FREE_TEXT_DATASETS — for structured-only datasets k=0 == k=5 by construction.
+    Lower accuracy = synthetic less detectable = better quality.
+    Sign test H1: k=5 accuracy < k=0 accuracy (neighbors help).
+    """
+    wr = [e for e in evals if e.eval_type == "whole_row" and e.dataset in FREE_TEXT_DATASETS]
+
+    k0_evals = [e for e in wr if "_k0" in e.generator]
+    k5_evals = [e for e in wr if "_k0" not in e.generator and "great" not in e.generator.lower()]
+
+    # Index k5 by (dataset, judge, base_generator)
+    k5_index: dict[tuple, JudgeEval] = {}
+    for e in k5_evals:
+        k5_index[(e.dataset, e.judge, e.generator)] = e
+
+    pairs = []
+    for e0 in k0_evals:
+        base_gen = e0.generator.replace("_k0", "")
+        e5 = k5_index.get((e0.dataset, e0.judge, base_gen))
+        if e5 is None:
+            continue
+        pairs.append({
+            "dataset":       e0.dataset,
+            "judge":         e0.judge,
+            "generator_base": base_gen,
+            "acc_k5":        round(e5.accuracy, 6),
+            "acc_k0":        round(e0.accuracy, 6),
+            "diff_k5_minus_k0": round(e5.accuracy - e0.accuracy, 6),
+            "k5_better":     bool(e5.accuracy < e0.accuracy),
+        })
+
+    n_k5_better = sum(1 for p in pairs if p["k5_better"])
+    n_k0_better = len(pairs) - n_k5_better
+    n = len(pairs)
+    sign_p = binomtest(n_k5_better, n, 0.5, alternative="greater").pvalue if n > 0 else None
+
+    return {
+        "note": "Lower LLM judge accuracy = synthetic less detectable = better quality.",
+        "datasets_considered": sorted(FREE_TEXT_DATASETS),
+        "n_pairs": n,
+        "n_k5_better": n_k5_better,
+        "n_k0_better": n_k0_better,
+        "sign_test_p": round(sign_p, 6) if sign_p is not None else None,
+        "sig_05": bool(sign_p < 0.05) if sign_p is not None else False,
+        "pairs": sorted(pairs, key=lambda x: x["dataset"]),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -364,9 +424,10 @@ def run(reports_dir: pathlib.Path = REPORTS_DIR,
     ft_evals = [e for e in evals if e.eval_type == "free_text"]
     wr_evals = [e for e in evals if e.eval_type == "whole_row"]
 
-    per_eval   = [_eval_record(e) for e in evals]
-    sign_tests = build_sign_tests(evals)
+    per_eval    = [_eval_record(e) for e in evals]
+    sign_tests  = build_sign_tests(evals)
     cross_judge = build_cross_judge(evals)
+    k0_ablation = build_k0_ablation(evals)
     degenerate  = [_eval_record(e) for e in evals if e.is_degenerate]
 
     ft_accs = [e.accuracy for e in ft_evals]
@@ -384,6 +445,7 @@ def run(reports_dir: pathlib.Path = REPORTS_DIR,
         "per_evaluation":          per_eval,
         "sign_tests":              sign_tests,
         "cross_judge_comparisons": cross_judge,
+        "k0_ablation":             k0_ablation,
         "degenerate_cases":        degenerate,
         "summary": {
             "free_text_mean_accuracy":      round(sum(ft_accs) / len(ft_accs), 6) if ft_accs else None,
@@ -413,6 +475,11 @@ def run(reports_dir: pathlib.Path = REPORTS_DIR,
     print(f"  Cross-judge matched pairs: {len(cross_judge)}")
     cross_sig = sum(1 for r in cross_judge if r["sig_05"])
     print(f"  Significant judge differences (p<0.05): {cross_sig}/{len(cross_judge)}")
+
+    ab = k0_ablation
+    print(f"\n  k=0 vs k=5 ablation ({ab['n_pairs']} paired datasets with free text):")
+    print(f"  k=5 better (lower acc): {ab['n_k5_better']}/{ab['n_pairs']}, "
+          f"sign-test p={ab['sign_test_p']} {'*' if ab['sig_05'] else '(ns)'}")
 
 
 if __name__ == "__main__":
