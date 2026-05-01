@@ -19,6 +19,7 @@ llm_judge:
   # Local Qwen self-judge (generator == judge).
   # model: Qwen/Qwen2.5-14B-Instruct
   # provider: local
+  #model: gemini-3.1-flash-lite-preview
   model: gemini-2.5-pro
   thinking_budget: -1
   max_examples_per_class: 128
