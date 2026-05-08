@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
+
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 import numpy as np
 import pandas as pd
@@ -62,8 +65,10 @@ def run_mia(
     dists = nn.kneighbors(X_real)[0][:, 0]
 
     auroc = float(roc_auc_score(labels, -dists))
+    worst_case = round(max(auroc, 1.0 - auroc), 4)
     return {
         "mia_auroc": round(auroc, 4),
+        "mia_auroc_worst_case": worst_case,
         "n_train": int(len(real_train)),
         "n_holdout": int(len(real_holdout)),
         "n_synthetic": int(len(synthetic_df)),
@@ -102,6 +107,12 @@ def main() -> None:
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
 
+    max_rows = 20_000
+    if len(real_df) > max_rows:
+        real_df = real_df.sample(max_rows, random_state=random_state)
+    if len(synthetic_df) > max_rows:
+        synthetic_df = synthetic_df.sample(max_rows, random_state=random_state)
+
     real_train, real_holdout = train_test_split(
         real_df, test_size=holdout_fraction, random_state=random_state
     )
@@ -117,7 +128,8 @@ def main() -> None:
 
     result = run_mia(real_train, real_holdout, synthetic_df, structured_columns)
 
-    print(f"\nMIA AUROC : {result['mia_auroc']:.4f}  (0.5 = no leakage, 1.0 = full memorization)")
+    print(f"\nMIA AUROC       : {result['mia_auroc']:.4f}  (0.5 = no leakage, 1.0 = full memorization)")
+    print(f"MIA worst-case  : {result['mia_auroc_worst_case']:.4f}  (max(AUROC, 1-AUROC), always >= 0.5)")
     print(f"Mean dist train   : {result['mean_dist_train']:.4f}")
     print(f"Mean dist holdout : {result['mean_dist_holdout']:.4f}")
 

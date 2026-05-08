@@ -17,9 +17,9 @@ synthetic_data_path: data/processed/{dataset_name}_{generator_model}.csv
 llm_judge:
   enabled: true
   # Local Qwen self-judge (generator == judge).
-  # model: Qwen/Qwen2.5-14B-Instruct
+  # model: Qwen/Qwen2.5-14B-Instruct #Change to 7B for GReaT
   # provider: local
-  #model: gemini-3.1-flash-lite-preview
+  # model: gemini-3.1-flash-lite-preview
   model: gemini-2.5-pro
   thinking_budget: -1
   max_examples_per_class: 128
@@ -27,8 +27,6 @@ llm_judge:
   random_state: 42
   # Reasoning options (API): gemini-3.1-pro-preview, gemini-2.5-pro, gemini-2.5-flash
   # thinking_budget: -1 = dynamic (model decides). Set 0 to disable. Remove line for non-thinking models.
-  # model: gemini-2.5-pro
-  # thinking_budget: -1
 
 
 # Output report path for structured-column metrics.
