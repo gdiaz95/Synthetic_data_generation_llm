@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 import sys
 from typing import Any
+
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 root_path = Path(__file__).resolve().parents[2]
 if str(root_path) not in sys.path:
@@ -231,6 +234,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mauve-max-samples", type=int, default=500)
     parser.add_argument("--bertscore-model", type=str, default="distilbert-base-uncased")
     parser.add_argument("--nndr-threshold", type=float, default=0.5)
+    parser.add_argument("--max-synthetic-rows", type=int, default=None,
+                        help="Randomly sample the synthetic data down to this many rows "
+                        "before computing BERTScore/MAUVE (unbounded by default). "
+                        "BERTScore has no internal cap and scales with the full synthetic "
+                        "row count, so large datasets (e.g. Airbnb at ~280k rows) can take "
+                        "a very long time without this.")
     parser.add_argument("--device-id", type=int, default=0,
                         help="CUDA device id for MAUVE (BERTScore uses cuda:0 within CUDA_VISIBLE_DEVICES).")
     return parser.parse_args()
@@ -276,6 +285,11 @@ def main() -> None:
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
     structured_columns = [c for c in real_df.columns if c not in set(text_columns)]
+
+    if args.max_synthetic_rows is not None and len(synthetic_df) > args.max_synthetic_rows:
+        print(f"Sampling synthetic data down to {args.max_synthetic_rows} rows "
+              f"(from {len(synthetic_df)}) for BERTScore/MAUVE.")
+        synthetic_df = synthetic_df.sample(args.max_synthetic_rows, random_state=random_seed).reset_index(drop=True)
 
     real_train, real_holdout = train_test_split(real_df, test_size=holdout_fraction, random_state=random_seed)
     rng = np.random.default_rng(random_seed)

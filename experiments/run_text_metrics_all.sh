@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Computes BERTScore + MAUVE + privacy NNDR for all datasets.
 # adult_with_three only (no other adult variants).
-# All other datasets run with both models.
+# All other datasets run with the same single backbone.
 # Output: reports/llm_metrics/{dataset}_{model}_llm_text_metrics.json
+#
+# Backbone scope: gemini-3.1-flash-lite-preview only. The analysis is
+# standardized on this single backbone via our Gemini API partnership with
+# Google, rather than comparing across multiple commercial providers.
 #
 # Usage:
 #   bash run_text_metrics_all.sh
@@ -17,7 +21,7 @@ cd "$PROJECT_ROOT"
 export CUDA_VISIBLE_DEVICES=5,6,7   # device 0 inside script → physical GPU 5
 
 SCRIPT="source/pipelines/run_llm_text_metrics.py"
-MODELS=("gpt-4o-mini" "gemini-3.1-flash-lite-preview")
+MODELS=("gemini-3.1-flash-lite-preview")
 OTHER_DATASETS=(
     Airbnb
     consumer_complaint

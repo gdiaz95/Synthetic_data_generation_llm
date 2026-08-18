@@ -13,21 +13,38 @@ from source.llm.server_model import SingleGPUServer, APIModelConnectionError
 
 
 
-META_PHRASES = [
+# Phrases that only ever show up as *trailing* meta-commentary the model
+# appends after the real content — truncate from the phrase onward, keeping
+# what came before it.
+TRAILING_META_PHRASES = [
     "[end]",
     "to ensure adherence",
     "word count",
     "fits constraints",
     "ignore previous",
-    "return only",
-    "here's your requested",
     # Leaked LLM instruction phrases found in neighbor data
     "focus on mimicking",
     "to sound human",
     "aim for consistency",
     "to apply, just",
+]
+
+# Phrases that show up as a *leading* preamble before the real content (e.g.
+# "Here's your requested amenities list: <actual list>", or the model
+# echoing the prompt's own "Return ONLY the {text_column} text." instruction
+# before complying). Truncating to "everything before the phrase" would
+# discard the entire real answer for these, so instead strip the preamble
+# itself and keep what follows. This was the root cause of a near-total data
+# loss on longer/more complex generations (e.g. ~99.75% of an "amenities"
+# column silently blanked to empty strings) where a smaller/faster model
+# tended to echo "return only" back before actually answering.
+LEADING_META_PHRASES = [
+    "return only",
+    "here's your requested",
     "here goes:",
 ]
+
+META_PHRASES = TRAILING_META_PHRASES + LEADING_META_PHRASES
 
 
 def sanitize_neighbor_text(text: str) -> str:
@@ -54,10 +71,24 @@ def clean_generated_text(text: str) -> str:
         return ""
 
     lower = cleaned.lower()
-    for phrase in META_PHRASES:
+    for phrase in TRAILING_META_PHRASES:
         idx = lower.find(phrase)
         if idx != -1:
             cleaned = cleaned[:idx].strip()
+            lower = cleaned.lower()
+
+    for phrase in LEADING_META_PHRASES:
+        idx = lower.find(phrase)
+        if idx != -1:
+            after = cleaned[idx + len(phrase):]
+            # A leading preamble is often followed by a few more words and a
+            # colon before the real content (e.g. "...requested amenities
+            # list: <content>") — skip up through the next colon if one
+            # appears shortly after the phrase, not just immediately after it.
+            colon_pos = after.find(":")
+            if 0 <= colon_pos <= 40:
+                after = after[colon_pos + 1:]
+            cleaned = after.strip()
             lower = cleaned.lower()
 
     cleaned = re.sub(r"\[[^\]]*\]", "", cleaned).strip()
