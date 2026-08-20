@@ -161,6 +161,14 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Force a specific GPU for the local vLLM judge (bypasses auto selection).",
     )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=20_000,
+        help="Cap real and synthetic data at this many rows (random sample) before "
+        "computing any metric, so results are comparable ('apples to apples') across "
+        "datasets of very different sizes. Pass 0 to disable capping.",
+    )
     return parser.parse_args()
 
 
@@ -278,6 +286,15 @@ def main() -> None:
 
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
+
+    max_rows = args.max_rows
+    if max_rows and max_rows > 0:
+        if len(real_df) > max_rows:
+            print(f"Sampling real data down to {max_rows} rows (from {len(real_df)}).")
+            real_df = real_df.sample(max_rows, random_state=random_seed).reset_index(drop=True)
+        if len(synthetic_df) > max_rows:
+            print(f"Sampling synthetic data down to {max_rows} rows (from {len(synthetic_df)}).")
+            synthetic_df = synthetic_df.sample(max_rows, random_state=random_seed).reset_index(drop=True)
 
     if target_column and target_column not in real_df.columns:
         print(f"Configured target_column '{target_column}' does not exist in real data; skipping TSTR.")
