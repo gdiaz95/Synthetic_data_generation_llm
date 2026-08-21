@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import statistics
 import time
@@ -91,7 +92,24 @@ def clean_generated_text(text: str) -> str:
             cleaned = after.strip()
             lower = cleaned.lower()
 
-    cleaned = re.sub(r"\[[^\]]*\]", "", cleaned).strip()
+    # Some models answer a list-shaped request (e.g. amenities) with a JSON
+    # array instead of prose. Convert it to a plain comma-separated list
+    # before the bracket-stripping below, which would otherwise treat the
+    # whole response as one big "[annotation]" and wipe it entirely.
+    if cleaned.startswith("[") and cleaned.endswith("]"):
+        try:
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
+                cleaned = ", ".join(parsed)
+        except json.JSONDecodeError:
+            pass
+
+    # Strip small bracketed annotations (e.g. "[END]") that appear within an
+    # otherwise-prose response — but never let this wipe out the entire
+    # response (guards against any other case where the real content is
+    # itself fully bracketed).
+    stripped = re.sub(r"\[[^\]]*\]", "", cleaned).strip()
+    cleaned = stripped if stripped else cleaned
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned
 
