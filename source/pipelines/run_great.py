@@ -196,6 +196,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-train-rows", type=int, default=5_000)
     parser.add_argument("--max-seq-len", type=int, default=None, help="Override MAX_SEQ_LEN (default 256; use 512 for consumer_complaint).")
+    parser.add_argument("--n-synthetic", type=int, default=None, help="Override synthetic row count (default: dataset's _LARGE_DATASET_MAX_ROWS cap, else len(real_df)).")
     return parser.parse_args()
 
 
@@ -237,7 +238,7 @@ def main() -> None:
     print(f"Epochs   : {epochs}  |  Batch size: {args.batch_size}")
 
     # Determine output size (same cap logic as run_full.py)
-    n_synthetic = _LARGE_DATASET_MAX_ROWS.get(dataset_name, len(real_df))
+    n_synthetic = args.n_synthetic or _LARGE_DATASET_MAX_ROWS.get(dataset_name, len(real_df))
     print(f"Synthetic: {n_synthetic} rows to generate")
 
     texts = [_serialize_row(row, columns) for row in train_df.to_dict("records")]
