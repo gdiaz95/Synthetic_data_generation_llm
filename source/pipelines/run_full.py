@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 from types import SimpleNamespace
 import re
@@ -477,6 +478,7 @@ def _resolve_metadata(
 
 
 def main() -> None:
+    pipeline_start = time.perf_counter()
     load_dotenv()
     args = parse_args()
 
@@ -591,6 +593,7 @@ def main() -> None:
     if max_synthetic_rows:
         print(f"- Capping synthetic rows at {max_synthetic_rows} for dataset '{dataset_name}'")
     print("\n[1/3] Running tabular data generation...")
+    npgc_retrieval_start = time.perf_counter()
     tabular_result = run_tabular_generation(
         df,
         tabular_cfg,
@@ -599,6 +602,7 @@ def main() -> None:
         compute_knn=should_run_llm and not _k0_mode,
         max_rows=max_synthetic_rows,
     )
+    npgc_retrieval_seconds = time.perf_counter() - npgc_retrieval_start
     knn_shape = None if tabular_result.nn_idx is None else tabular_result.nn_idx.shape
     print(
         "Tabular generation complete. "
@@ -646,6 +650,7 @@ def main() -> None:
             traceback.print_exc()
             raise
         
+        llm_generation_start = time.perf_counter()
         try:
             print("\n[2/3] Running LLM free-text generation...")
             for stage_idx, text_column in enumerate(text_columns, start=1):
@@ -716,14 +721,17 @@ def main() -> None:
             traceback.print_exc()
             raise
         finally:
+            llm_generation_seconds = time.perf_counter() - llm_generation_start
             llm_usage = llm_server.get_usage_summary()
             if llm_server.provider == "local":
                 llm_server.cleanup()
     elif tabular_only_mode:
         print("\n[2/3] Skipping LLM free-text generation (billing not approved; tabular-only generation requested).")
         output_model_name = None
+        llm_generation_seconds = 0.0
     else:
         print("\n[2/3] Skipping LLM free-text generation (no text columns configured).")
+        llm_generation_seconds = 0.0
 
     print("[3/3] Saving generated dataset...")
     if output_model_name is not None:
@@ -734,6 +742,7 @@ def main() -> None:
     generated.to_csv(output_csv, index=False)
     print(f"✅ Saved synthetic dataset to: {output_csv}")
 
+    total_seconds = time.perf_counter() - pipeline_start
     run_details = {
         "dataset_name": dataset_name,
         "input_csv": str(input_csv),
@@ -744,6 +753,11 @@ def main() -> None:
         "llm_config": llm_cfg,
         "prompts_config": prompt_cfg,
         "llm_usage": llm_usage,
+        "timing": {
+            "npgc_retrieval_seconds": round(npgc_retrieval_seconds, 3),
+            "llm_generation_seconds": round(llm_generation_seconds, 3),
+            "total_seconds": round(total_seconds, 3),
+        },
         "resolved_hyperparameters": {
             "knn_k": int(tabular_cfg["knn_k"]),
             "epsilon": tabular_cfg["epsilon"],
@@ -765,6 +779,12 @@ def main() -> None:
         f"completion_tokens={llm_usage['completion_tokens']}, "
         f"total_tokens={llm_usage['total_tokens']}, "
         f"requests={llm_usage['requests']}"
+    )
+    print(
+        "⏱️  Timing summary: "
+        f"npgc_retrieval_seconds={run_details['timing']['npgc_retrieval_seconds']}, "
+        f"llm_generation_seconds={run_details['timing']['llm_generation_seconds']}, "
+        f"total_seconds={run_details['timing']['total_seconds']}"
     )
 
 
