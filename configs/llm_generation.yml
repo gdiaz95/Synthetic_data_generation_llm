@@ -62,10 +62,12 @@ text_vector_hash_dim: 2000
 
 
 # Distance blending for multi-stage text generation.
-# d_j^2 = alpha * d_tab^2 + sum_{c<j} beta_c * ||z_c(s)-z_c(r)||^2
-# Each block is normalized by feature dimension before weighting.
-distance_alpha: 1.0
-distance_beta_default: 0.01
+# D(i,j) = d_struct^2 + sum_{c<j} lambda_c * ||z_c(s)-z_c(r)||^2
+# The structured block's coefficient is always 1 (not configurable).
+# Every block (structured and each text block) is L2 row-normalized to unit
+# norm before distances are computed; no additional per-block dimension
+# division is applied.
+distance_lambda_default: 0.01
 # Optional per-column overrides, e.g. {job_summary: 0.3}
-distance_beta_by_column: {}
+distance_lambda_by_column: {}
 

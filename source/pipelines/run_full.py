@@ -529,13 +529,11 @@ def main() -> None:
     print(f"- llm max_words_reader: {max_words_reader}")
     print(f"- llm parallel_api_calls: {bool(llm_cfg.get('parallel_api_calls', False))}")
     print(f"- llm api_parallel_shards: {int(llm_cfg.get('api_parallel_shards', 5))}")
-    distance_alpha = float(llm_cfg.get("distance_alpha", 1.0))
-    distance_beta_default = float(llm_cfg.get("distance_beta_default", 0.2))
-    distance_beta_by_column = llm_cfg.get("distance_beta_by_column", {})
-    if not isinstance(distance_beta_by_column, dict):
-        raise ValueError("llm.distance_beta_by_column must be a mapping of text_column -> beta weight.")
-    print(f"- distance alpha (tabular block): {distance_alpha}")
-    print(f"- distance beta default (text blocks): {distance_beta_default}")
+    distance_lambda_default = float(llm_cfg.get("distance_lambda_default", 0.01))
+    distance_lambda_by_column = llm_cfg.get("distance_lambda_by_column", {})
+    if not isinstance(distance_lambda_by_column, dict):
+        raise ValueError("llm.distance_lambda_by_column must be a mapping of text_column -> lambda weight.")
+    print(f"- distance lambda default (text blocks): {distance_lambda_default}")
 
     if not input_csv.exists():
         raise FileNotFoundError(f"Input file not found: {input_csv}")
@@ -661,19 +659,18 @@ def main() -> None:
                 elif text_vector_blocks:
                     weighted_blocks: list[tuple[pd.DataFrame, pd.DataFrame, float]] = []
                     for prev_col, block in text_vector_blocks.items():
-                        beta = float(distance_beta_by_column.get(prev_col, distance_beta_default))
-                        weighted_blocks.append((block["real"], block["synthetic"], beta))
+                        lam = float(distance_lambda_by_column.get(prev_col, distance_lambda_default))
+                        weighted_blocks.append((block["real"], block["synthetic"], lam))
                     stage_nn_idx, _ = knn_retrieval_with_text_blocks(
                         tabular_result.real_z,
                         tabular_result.z_correlated,
                         k=int(tabular_cfg["knn_k"]),
-                        alpha=distance_alpha,
                         text_blocks=weighted_blocks,
                         feature_weights=feature_weights,
                     )
                     print(
                         "     Updated KNN with blended distance: "
-                        f"alpha={distance_alpha}, text_blocks={len(weighted_blocks)}"
+                        f"text_blocks={len(weighted_blocks)}"
                     )
                 else:
                     stage_nn_idx = tabular_result.nn_idx
@@ -762,9 +759,8 @@ def main() -> None:
             "knn_k": int(tabular_cfg["knn_k"]),
             "epsilon": tabular_cfg["epsilon"],
             "enforce_min_max_values": bool(tabular_cfg["enforce_min_max_values"]),
-            "distance_alpha": distance_alpha,
-            "distance_beta_default": distance_beta_default,
-            "distance_beta_by_column": distance_beta_by_column,
+            "distance_lambda_default": distance_lambda_default,
+            "distance_lambda_by_column": distance_lambda_by_column,
             "max_words_generation": max_words_generation,
             "max_words_reader": max_words_reader,
             "parallel_api_calls": bool(llm_cfg.get("parallel_api_calls", False)),
