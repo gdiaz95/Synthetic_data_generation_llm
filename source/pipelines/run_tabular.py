@@ -103,10 +103,11 @@ def knn_retrieval_with_text_blocks(
 ) -> tuple[np.ndarray, np.ndarray]:
     """KNN retrieval using weighted tabular and optional text-vector distance blocks.
 
-    Distance uses the form:
+    Each block (tabular, and every text block) is L2 row-normalized to unit
+    norm before distances are computed. Distance uses the form:
         d_j^2 = alpha * d_tab^2 + sum_c beta_c * ||z_c(s) - z_c(r)||^2
-
-    Each block is normalized by its feature dimension to avoid scale dominance.
+    with d_tab^2 and each ||z_c(s) - z_c(r)||^2 computed directly on the
+    unit-normalized vectors (no additional per-block dimension division).
     """
     if alpha < 0:
         raise ValueError("alpha must be non-negative.")
@@ -137,10 +138,9 @@ def knn_retrieval_with_text_blocks(
     if k > n:
         raise ValueError(f"k={k} cannot exceed number of real rows n={n}.")
 
-    tab_norm = max(1, Xr_tab.shape[1])
     r_tab_norm2 = np.sum(Xr_tab * Xr_tab, axis=1)
 
-    prepared_text: list[tuple[np.ndarray, np.ndarray, np.ndarray, float, int]] = []
+    prepared_text: list[tuple[np.ndarray, np.ndarray, np.ndarray, float]] = []
     for real_block, syn_block, beta in text_blocks or []:
         if beta < 0:
             raise ValueError("All beta weights must be non-negative.")
@@ -152,8 +152,7 @@ def knn_retrieval_with_text_blocks(
         if Xr.shape[0] != n or Xs.shape[0] != m:
             raise ValueError("Text block row counts must match tabular real/synthetic row counts.")
         r_norm2 = np.sum(Xr * Xr, axis=1)
-        block_norm = max(1, Xr.shape[1])
-        prepared_text.append((Xr, Xs, r_norm2, float(beta), block_norm))
+        prepared_text.append((Xr, Xs, r_norm2, float(beta)))
 
     nn_idx = np.empty((m, k), dtype=np.int64)
     nn_dist = np.empty((m, k), dtype=np.float64)
@@ -162,12 +161,12 @@ def knn_retrieval_with_text_blocks(
         end = min(start + chunk_size, m)
         S_tab = Xs_tab[start:end]
         s_tab_norm2 = np.sum(S_tab * S_tab, axis=1)
-        dist2 = alpha * (s_tab_norm2[:, None] + r_tab_norm2[None, :] - 2.0 * (S_tab @ Xr_tab.T)) / tab_norm
+        dist2 = alpha * (s_tab_norm2[:, None] + r_tab_norm2[None, :] - 2.0 * (S_tab @ Xr_tab.T))
 
-        for Xr, Xs, r_norm2, beta, block_norm in prepared_text:
+        for Xr, Xs, r_norm2, beta in prepared_text:
             S = Xs[start:end]
             s_norm2 = np.sum(S * S, axis=1)
-            dist2 += beta * (s_norm2[:, None] + r_norm2[None, :] - 2.0 * (S @ Xr.T)) / block_norm
+            dist2 += beta * (s_norm2[:, None] + r_norm2[None, :] - 2.0 * (S @ Xr.T))
 
         np.maximum(dist2, 0.0, out=dist2)
 
