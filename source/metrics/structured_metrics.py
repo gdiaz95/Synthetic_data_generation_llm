@@ -309,8 +309,9 @@ def _holdout_discriminator_metrics(
     model.fit(x_train, y_train)
     probabilities = model.predict_proba(x_eval)[:, 1]
     predictions = model.predict(x_eval)
+    auroc = float(roc_auc_score(y_eval, probabilities))
     return {
-        "roc_auc": float(roc_auc_score(y_eval, probabilities)),
+        "roc_auc": max(auroc, 1.0 - auroc),
         "accuracy": float(accuracy_score(y_eval, predictions)),
     }
 

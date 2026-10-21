@@ -36,6 +36,7 @@ covers how to run things.
 | `data/small/` | Small hand-curated datasets (e.g. UCI Adult + augmented text) |
 | `.metadata/{dataset}/metadata.json` | Per-dataset free-text columns / target column, created interactively on first run |
 | `pre_processing/` | Per-dataset raw → clean CSV scripts |
+| `augment_dataset/` | One-off script that generated the Adult dataset's synthetic free-text columns |
 | `source/pipelines/` | The runnable pipeline scripts (see below) |
 | `experiments/` | Batch shell scripts that loop pipelines over many datasets |
 | `reports/`, `reports/membership/`, `reports/llm_metrics/` | JSON metric outputs |
@@ -190,6 +191,39 @@ Your answers are saved to `.metadata/<name>/metadata.json` so every later run
 From here on, `<name>` behaves exactly like any of the existing datasets —
 continue with steps 2–4 in [Workflow](#workflow) above (evaluate, then
 aggregate significance), always passing the same `--dataset-name <name>`.
+
+## Adult dataset augmentation
+
+`adult_with_three` extends the UCI Adult dataset with three LLM-generated
+free-text columns (`job_description`, `daily_tasks`, `work_snippet`) used as
+one of this project's evaluation datasets. Everything lives in
+[`augment_dataset/adults.py`](augment_dataset/adults.py):
+
+- **Model and sampling parameters** — top of the file, lines 14–20:
+  `MODEL = "gemini-3-flash-preview"`, `TEMPERATURE = 0.9`, `TOP_P = 0.95`,
+  `TOP_K = 20`, `THINKING_BUDGET = 2048`, plus per-column word limits
+  (`MAX_WORDS = 80`, `THIRD_COLUMN_MAX_WORDS = 10`).
+- **Exact prompts** — one builder function per column, each returning the
+  literal prompt string sent to the model: `build_job_description_batch_prompt`
+  (line 80), `build_daily_tasks_batch_prompt` (line 103),
+  `build_work_snippet_batch_prompt` (line 125).
+- **Generation calls** — `generate_job_descriptions_for_batch`,
+  `generate_daily_tasks_for_batch`, `generate_work_snippet_for_batch` (each
+  wraps `_generate_jsonl_batch`, which calls the Gemini API and parses the
+  JSONL response).
+
+To re-run it:
+
+```bash
+cd augment_dataset && python adults.py
+```
+
+It downloads the original Adult dataset via `ucimlrepo` (`fetch_ucirepo(id=2)`,
+unless a cached copy already exists at `data/small/adult_with_job_description_small.csv`),
+calls the three prompt builders above once per row batch, and writes the
+augmented CSV. This was a one-time step to produce the dataset already checked
+into this repository — you don't need to re-run it to use `adult_with_three`
+in the main workflow above.
 
 ## Config files at a glance
 
