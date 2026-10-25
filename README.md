@@ -9,8 +9,10 @@ real-data neighbors of each synthetic row. Includes tooling to evaluate
 fidelity, privacy, and statistical significance of the results.
 
 For a full field-by-field breakdown of every config option, see
-[docs_config_reference.md](docs_config_reference.md). This README only
-covers how to run things.
+[docs_config_reference.md](docs_config_reference.md). For the exact
+hyperparameter values used to produce the paper's reported results, see
+[HYPERPARAMETERS.md](HYPERPARAMETERS.md). This README only covers how to
+run things.
 
 ## Setup
 
@@ -77,6 +79,10 @@ python -m source.pipelines.run_full --dataset-name <name> --model <model> --prov
 ```bash
 python source/pipelines/run_great.py --dataset-name <name> --gpu-index <idx>
 ```
+
+Training epochs and row caps follow a fixed per-dataset schedule rather than
+manual tuning — see [HYPERPARAMETERS.md](HYPERPARAMETERS.md#great-q7g-baseline-training-configuration)
+for the schedule and the exact values used for each dataset.
 
 Output: `data/processed/{name}_{model}_great.csv`.
 
