@@ -149,19 +149,12 @@ def build_prompt_from_structured_with_neighbors(
 
     snippets: list[str] = []
     if neighbor_rows:
+        # Only the neighbor's free-text field is exposed; its real structured
+        # attributes never enter the prompt.
         for idx, row in enumerate(neighbor_rows[:max_neighbors], start=1):
-            row_fields = {
-                key: value
-                for key, value in row.items()
-                if key != text_column and value is not None and pd.notna(value)
-            }
             excerpt = cap_words(str(row.get(text_column, "")), max_words_reader)
             if excerpt:
-                snippets.append(
-                    f"- Neighbor {idx}\n"
-                    f"  profile: {row_fields}\n"
-                    f"  {text_column}: {excerpt}"
-                )
+                snippets.append(f"- Neighbor {idx}: {excerpt}")
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
 
