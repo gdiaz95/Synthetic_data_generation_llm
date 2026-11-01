@@ -26,8 +26,7 @@ column (via dataset metadata).
 | LLM generation | GPU memory utilization | 0.80 |
 | LLM generation | local maximum model length | 4096 tokens |
 | Prompt | maximum output words T_max | 80, per-column override allowed |
-| Prompt | retrieved row excerpt cap | 20 words per example |
-| Prompt | retrieved row reading budget | 250 words |
+| Prompt | retrieved row excerpt cap | 250 words per example (applied only if exceeded) |
 | Synthetic set | n_syn / n_train | 1.25 |
 | Data split | holdout fraction | 0.20 |
 | Randomization | random seed | 42 |

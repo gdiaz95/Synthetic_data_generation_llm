@@ -1,5 +1,5 @@
 free_text_prompt: |
-  Write realistic {text_column} content (40–{max_words_generation} words).
+  Write realistic {text_column} content ({target_min_words}–{target_max_words} words).
 
   Constraints:
   - Target between {target_min_words} and {target_max_words} words based on neighbor density (avg ± 2σ).
