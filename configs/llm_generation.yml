@@ -1,9 +1,9 @@
-model: gemini-3.1-flash-lite-preview
-# model: gpt-4o-mini
+model: gemini-3.1-flash-lite
+# model: gpt-6-luna
 # model: gpt-5-mini
 # Gemini Flash 3 model options (switch by uncommenting one):
 # model: gemini-3-flash-preview
-# model: gemini-3.1-flash-lite-preview
+# model: gemini-3.1-flash-lite
 provider: auto
 
 # model: Qwen/Qwen2.5-14B-Instruct
@@ -17,6 +17,11 @@ provider: auto
 
 gpu_memory_utilization: 0.80
 max_model_len: 4096
+# Note: fake_job_postings/Qwen2.5-14B-Instruct is known to need more headroom
+# than this (see 01_generate.sh, which passes --max-model-len 8192 just for
+# that one combo) -- not raised here globally since a larger max_model_len
+# measurably slows local generation for every dataset, not just the one that
+# needs it.
 enforce_eager: false
 
 # auto-overridden by tabular.knn_k in run_full.py (kept for merge compatibility)

@@ -784,7 +784,7 @@ class SingleGPUServer:
    def _build_openai_payload(self, prompt, config, model_name):
        model_name_lower = model_name.lower()
        is_newer_model = any(
-           newer_model in model_name_lower for newer_model in ["gpt-5", "gpt-o1"]
+           newer_model in model_name_lower for newer_model in ["gpt-5", "gpt-o1", "gpt-6"]
        )
        uses_max_completion_tokens = is_newer_model or "gpt-4o-mini" in model_name_lower
 

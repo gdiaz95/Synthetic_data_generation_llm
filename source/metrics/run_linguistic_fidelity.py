@@ -52,9 +52,9 @@ TEX_OUTPUT_PATH = REPO_ROOT / "writing" / "linguistic_fidelity.tex"
 
 DATASETS = ["adult_with_three", "Airbnb", "consumer_complaint", "fake_job_postings",
             "Kickstarter", "netflix_titles"]
-MAIN_MODELS = ["gemini-3.1-flash-lite-preview", "gpt-4o-mini", "Qwen/Qwen2.5-14B-Instruct"]
-K0_MODEL = "gemini-3.1-flash-lite-preview_k0"
-K0_BASE_MODEL = "gemini-3.1-flash-lite-preview"
+MAIN_MODELS = ["gemini-3.1-flash-lite", "gpt-6-luna", "Qwen/Qwen2.5-14B-Instruct"]
+K0_MODEL = "gemini-3.1-flash-lite_k0"
+K0_BASE_MODEL = "gemini-3.1-flash-lite"
 
 MATTR_WINDOW = 100
 N_SEEDS = 5
@@ -251,18 +251,6 @@ def _variant_synthetic_path(cfg: dict, dataset_name: str, model: str) -> Path:
     return REPO_ROOT / template.format(dataset_name=dataset_name, generator_model=safe_model)
 
 
-PATCH_DIR = REPO_ROOT / "data" / "processed" / "patches"
-
-
-def _patch_path(dataset_name: str, model: str, col: str) -> Path:
-    """Small (e.g. 300-row) standalone samples generated for a single free-text column
-    when the official released synthetic file for that (dataset, generator) is missing
-    it -- e.g. consumer_complaint's gpt-4o-mini file has no consumer_complaint_narrative
-    column at all. Same convention already used for the joint-fidelity appendix tables."""
-    safe_model = _safe_model_name(model)
-    return PATCH_DIR / f"{dataset_name}_{safe_model}_{col}_small.csv"
-
-
 def process_dataset(dataset_name: str, cfg: dict, random_state: int, holdout_fraction: float) -> dict[str, Any]:
     print(f"=== {dataset_name} ===", flush=True)
     metadata = _load_metadata(dataset_name)
@@ -300,13 +288,6 @@ def process_dataset(dataset_name: str, cfg: dict, random_state: int, holdout_fra
         syn_lex: dict[str, list[list[str]]] = {}
         for model, syn_df in variants.items():
             df_use = syn_df
-            if col not in df_use.columns:
-                patch_path = _patch_path(dataset_name, model, col)
-                if not patch_path.exists():
-                    continue
-                df_use = _load_capped(patch_path, MAX_ROWS, random_state)
-                print(f"  [patch] variant '{model}', column '{col}': using {patch_path.name} "
-                      f"({len(df_use)} rows; official file has no such column)")
             if col not in df_use.columns:
                 continue
             t = _clean_text_series(df_use[col])
@@ -433,7 +414,7 @@ def build_ablation_table(all_results: dict[str, Any]) -> str:
 """ + body + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n"
 
 
-_GEN_LABEL = {"gemini-3.1-flash-lite-preview": r"\Gfl", "gpt-4o-mini": r"\GPT",
+_GEN_LABEL = {"gemini-3.1-flash-lite": r"\Gfl", "gpt-6-luna": r"\GPT",
               "Qwen/Qwen2.5-14B-Instruct": r"\Qfourteen"}
 
 

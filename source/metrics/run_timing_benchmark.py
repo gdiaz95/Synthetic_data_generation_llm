@@ -3,10 +3,11 @@ Timing + token-usage benchmark: free-text datasets x generator backbones, at a
 matched row count, for a fair per-generator speed/cost comparison.
 
 Three tracks, run as separate invocations of this script:
-  - gfl:  gemini-3.1-flash-lite-preview, sequential across datasets
-  - gpt:  gpt-4o-mini, sequential across datasets (kept sequential deliberately --
-    running gpt-4o-mini combos in parallel against each other hits OpenAI's
-    per-account rate limit hard; confirmed empirically before this script existed)
+  - gfl:  gemini-3.1-flash-lite, sequential across datasets
+  - gpt:  gpt-6-luna, sequential across datasets (kept sequential deliberately --
+    running gpt-4o-mini combos in parallel against each other hit OpenAI's
+    per-account rate limit hard; confirmed empirically before this script existed.
+    Kept sequential for gpt-6-luna too as a precaution, not yet re-confirmed.)
   - qwen: Qwen/Qwen2.5-14B-Instruct (local), parallel -- one dataset per GPU,
     since each gets dedicated hardware and there's no shared API rate limit
 
@@ -146,7 +147,7 @@ def track_qwen_parallel() -> None:
 
 
 def _ensure_gpt_config() -> Path:
-    """gpt-4o-mini needs a lower api_parallel_shards than the project default (64) --
+    """gpt-6-luna needs a lower api_parallel_shards than the project default (64) --
     empirically, 64-way concurrency against OpenAI's per-account rate limit causes
     a storm of HTTP 429s and a very slow retry queue. 8 is safe."""
     if GPT_LLM_CONFIG.exists():
@@ -161,9 +162,9 @@ if __name__ == "__main__":
     track = sys.argv[1] if len(sys.argv) > 1 else None
     prepare_bench_inputs()
     if track == "gfl":
-        track_sequential("Gfl", "gemini-3.1-flash-lite-preview", "gemini")
+        track_sequential("Gfl", "gemini-3.1-flash-lite", "gemini")
     elif track == "gpt":
-        track_sequential("gpt-4o-mini", "gpt-4o-mini", "openai", llm_config=_ensure_gpt_config())
+        track_sequential("gpt-6-luna", "gpt-6-luna", "openai", llm_config=_ensure_gpt_config())
     elif track == "qwen":
         track_qwen_parallel()
     else:

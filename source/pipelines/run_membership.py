@@ -82,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Distance-based membership inference attack on synthetic data.")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--dataset-name", type=str, default=None)
-    parser.add_argument("--generator-model", type=str, default="gemini-3.1-flash-lite-preview")
+    parser.add_argument("--generator-model", type=str, default="gemini-3.1-flash-lite")
     return parser.parse_args()
 
 
