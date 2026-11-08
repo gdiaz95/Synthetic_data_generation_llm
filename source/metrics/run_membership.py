@@ -134,8 +134,9 @@ def main() -> None:
     print(f"Mean dist holdout : {result['mean_dist_holdout']:.4f}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = OUTPUT_DIR / f"{dataset_name}_membership.json"
-    out_path.write_text(json.dumps({"dataset": dataset_name, **result}, indent=2))
+    safe_model = model.replace("/", "-")
+    out_path = OUTPUT_DIR / f"{dataset_name}_{safe_model}_membership.json"
+    out_path.write_text(json.dumps({"dataset": dataset_name, "generator_model": model, **result}, indent=2))
     print(f"\nSaved: {out_path}")
 
 

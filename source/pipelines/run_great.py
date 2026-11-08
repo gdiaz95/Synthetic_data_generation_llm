@@ -14,7 +14,10 @@ import yaml
 DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 DEFAULT_METADATA_ROOT = Path(".metadata")
 OUTPUT_DIR = Path("data/processed")
-_LARGE_DATASET_MAX_ROWS = {"Kickstarter": 20_000, "Airbnb": 20_000, "consumer_complaint": 20_000}
+# Training-row cap for the three largest datasets; all others use --max-train-rows (5,000).
+_LARGE_DATASET_MAX_TRAIN_ROWS = {"Kickstarter": 20_000, "Airbnb": 20_000, "consumer_complaint": 20_000}
+# Every dataset: up to 20,000 synthetic rows (min(real rows, 20,000)).
+MAX_SYNTHETIC_ROWS = 20_000
 
 # Attention is O(n²) in sequence length — keep this as small as possible.
 # 256 covers structured-only rows and short text; consumer_complaint needs 512.
@@ -196,7 +199,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-train-rows", type=int, default=5_000)
     parser.add_argument("--max-seq-len", type=int, default=None, help="Override MAX_SEQ_LEN (default 256; use 512 for consumer_complaint).")
-    parser.add_argument("--n-synthetic", type=int, default=None, help="Override synthetic row count (default: dataset's _LARGE_DATASET_MAX_ROWS cap, else len(real_df)).")
+    parser.add_argument("--n-synthetic", type=int, default=None, help="Override synthetic row count (default: min(len(real_df), 20,000)).")
     return parser.parse_args()
 
 
@@ -230,15 +233,14 @@ def main() -> None:
     print(f"Shape    : {real_df.shape}  |  Free-text cols: {free_text_cols or '(none)'}")
 
     # Cap training rows for large datasets
-    max_train = _LARGE_DATASET_MAX_ROWS.get(dataset_name, args.max_train_rows)
+    max_train = _LARGE_DATASET_MAX_TRAIN_ROWS.get(dataset_name, args.max_train_rows)
     train_df = real_df.sample(n=min(len(real_df), max_train), random_state=42)
     print(f"Training : {len(train_df)} rows")
 
     epochs = args.epochs or _default_epochs(len(train_df))
     print(f"Epochs   : {epochs}  |  Batch size: {args.batch_size}")
 
-    # Determine output size (same cap logic as run_full.py)
-    n_synthetic = args.n_synthetic or _LARGE_DATASET_MAX_ROWS.get(dataset_name, len(real_df))
+    n_synthetic = args.n_synthetic or min(len(real_df), MAX_SYNTHETIC_ROWS)
     print(f"Synthetic: {n_synthetic} rows to generate")
 
     texts = [_serialize_row(row, columns) for row in train_df.to_dict("records")]

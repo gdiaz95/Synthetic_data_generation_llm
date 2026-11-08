@@ -28,6 +28,7 @@ class QAMetricsSummary:
     overall_accuracy: float
     univariate_accuracy: float
     bivariate_accuracy: float
+    trivariate_accuracy: float
     discriminator_auc: float
     identical_matches: float
     dcr_training: float
@@ -80,6 +81,7 @@ def _to_summary(metrics: Any) -> QAMetricsSummary:
         overall_accuracy=_safe_float(metrics.accuracy.overall),
         univariate_accuracy=_safe_float(metrics.accuracy.univariate),
         bivariate_accuracy=_safe_float(metrics.accuracy.bivariate),
+        trivariate_accuracy=_safe_float(metrics.accuracy.trivariate),
         discriminator_auc=_safe_float(metrics.similarity.discriminator_auc_training_synthetic),
         identical_matches=_safe_float(metrics.distances.ims_training),
         dcr_training=_safe_float(metrics.distances.dcr_training),
@@ -94,11 +96,13 @@ def evaluate_structured_qa_metrics(
     synthetic_df: pd.DataFrame,
     holdout_df: pd.DataFrame,
     non_free_text_columns: list[str],
-) -> dict[str, float]:
+    n_repeats: int = 3,
+) -> dict[str, Any]:
     """
     Evaluate MOSTLY AI QA metrics using only non-free-text (structured) columns.
 
-    The function intentionally ignores free-text columns for now.
+    mostlyai-qa does not seed all of its sampling, so the report is computed
+    n_repeats times and each metric is the median across repeats.
     """
     try:
         from mostlyai import qa
@@ -123,18 +127,25 @@ def evaluate_structured_qa_metrics(
     synthetic_eval = synthetic_df[non_free_text_columns]
     holdout_eval = holdout_df[non_free_text_columns]
 
-    report_result = qa.report(
-        syn_tgt_data=synthetic_eval,
-        trn_tgt_data=train_eval,
-        hol_tgt_data=holdout_eval,
-    )
-    metrics = _extract_metrics(report_result)
+    runs: list[dict[str, float]] = []
+    for _ in range(max(1, int(n_repeats))):
+        report_result = qa.report(
+            syn_tgt_data=synthetic_eval,
+            trn_tgt_data=train_eval,
+            hol_tgt_data=holdout_eval,
+        )
+        runs.append(asdict(_to_summary(_extract_metrics(report_result))))
 
-    report_file = Path("model-report.html")
-    if report_file.exists():
-        report_file.unlink()
+        report_file = Path("model-report.html")
+        if report_file.exists():
+            report_file.unlink()
 
-    return asdict(_to_summary(metrics))
+    summary: dict[str, Any] = {
+        key: float(np.nanmedian([run[key] for run in runs])) for key in runs[0]
+    }
+    summary["n_repeats"] = len(runs)
+    summary["runs"] = runs
+    return summary
 
 
 def _infer_prediction_task(target: pd.Series) -> str:

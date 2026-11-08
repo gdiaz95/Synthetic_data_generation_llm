@@ -89,26 +89,29 @@ Output: `data/processed/{name}_{model}_great.csv`.
 ### 3. Evaluate the synthetic data
 
 ```bash
-# Structured-column quality, SDV score, free-text distribution metrics, optional TSTR + LLM judge
-python -m source.pipelines.run_structured_metrics --dataset-name <name> --generator-model <model>
+# Structured-column quality, SDV score, free-text distribution metrics, optional TSTR
+python -m source.metrics.run_structured_metrics --dataset-name <name> --generator-model <model>
+
+# LLM-as-a-judge (column-level and/or whole-row), run separately for each judge model
+python -m source.metrics.run_judge --dataset-name <name> --generator-model <model> --judge-model <judge> --yes
 
 # BERTScore / MAUVE / NNDR privacy proxy for free-text columns
-python source/pipelines/run_llm_text_metrics.py --dataset-name <name> --generator-model <model>
+python source/metrics/run_llm_text_metrics.py --dataset-name <name> --generator-model <model>
 
 # Distance-based membership-inference privacy check
-python -m source.pipelines.run_membership --dataset-name <name> --generator-model <model>
+python -m source.metrics.run_membership --dataset-name <name> --generator-model <model>
 ```
 
 Each reads `real_data_path`/`synthetic_data_path` from `configs/metrics.yml`
 (templated with `{dataset_name}`/`{generator_model}`), so the synthetic CSV from
-step 2 must already exist. Reports land in `reports/`, `reports/llm_metrics/`,
-and `reports/membership/` respectively. Add `--yes` to skip the LLM-judge
-billing prompt.
+step 2 must already exist. Reports land in `reports/`, `reports/judges/`,
+`reports/llm_metrics/`, and `reports/membership/` respectively. Add `--yes` to
+skip the LLM-judge billing prompt.
 
 ### 4. Aggregate significance across all reports
 
 ```bash
-python source/pipelines/run_significance_tests.py
+python source/metrics/run_significance_tests.py
 ```
 
 Purely offline — scans every `reports/*_structured_metrics.json` produced in

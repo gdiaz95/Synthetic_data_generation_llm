@@ -27,12 +27,15 @@ llm_judge:
   max_examples_per_class: 128
   batch_size: 32
   random_state: 42
+  # Local (vLLM) judge context window. Large enough that every judge sees the
+  # full text being judged; generation keeps its own 4096 limit.
+  max_model_len: 16384
   # Reasoning options (API): gemini-4-argon, gemini-3.8-flash, gemini-3.1-pro-preview
   # thinking_budget: -1 = dynamic (model decides). Set 0 to disable. Remove line for non-thinking models.
 
 
 # Output report path for structured-column metrics.
-report_output_path: reports/{dataset_name}_{generator_model}_{llm_judge.model}_structured_metrics.json
+report_output_path: reports/{dataset_name}_{generator_model}_structured_metrics.json
 
 # Free-text columns to exclude from metrics for now.
 # If .metadata/{dataset_name}/metadata.json exists, it overrides this list.
@@ -43,6 +46,9 @@ metadata_json_path: .metadata/{dataset_name}/metadata.json
 
 # Optional fallback target column for TSTR when metadata does not define one.
 target_column:
+
+# mostlyai-qa is not fully seeded; each QA metric is the median of this many reruns.
+qa_repeats: 3
 
 # Holdout split parameters for real data.
 holdout_fraction: 0.2

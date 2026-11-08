@@ -22,12 +22,10 @@ from source.metrics.structured_metrics import (
     evaluate_tstr,
 )
 from source.metrics.free_text_metrics import evaluate_first_free_text_distribution
-from source.metrics.llm_judge import evaluate_llm_judge
 
 
 DEFAULT_CONFIG = Path("configs/metrics.yml")
 DEFAULT_METADATA_ROOT = Path(".metadata")
-DEFAULT_LLM_CONFIG = Path("configs/llm_generation.yml")
 
 
 def _read_yaml(path: Path) -> dict:
@@ -42,18 +40,9 @@ def _safe_model_name(model_name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", model_name).strip("-") or "model"
 
 
-def _resolve_path(template: str, *, dataset_name: str, model: str, judge_model: str = "") -> Path:
+def _resolve_path(template: str, *, dataset_name: str, model: str) -> Path:
     safe_gen = _safe_model_name(model)
-    # {llm_judge.model} contains a dot so Python's str.format() can't resolve it directly.
-    # Pre-substitute it: include the judge model only when it differs from the generator.
-    if judge_model and judge_model != model:
-        llm_judge_sub = _safe_model_name(judge_model)
-    else:
-        llm_judge_sub = ""
-    resolved = template.replace("{llm_judge.model}", llm_judge_sub)
-    resolved = re.sub(r"__+", "_", resolved)       # collapse double underscores from empty sub
-    resolved = re.sub(r"_+\.", ".", resolved)       # remove trailing underscore before extension
-    return Path(resolved.format(dataset_name=dataset_name, model=safe_gen, generator_model=safe_gen))
+    return Path(template.format(dataset_name=dataset_name, model=safe_gen, generator_model=safe_gen))
 
 
 def _dataset_name_from_path(input_csv: Path) -> str:
@@ -87,52 +76,6 @@ def _load_metadata(path: Path) -> dict[str, Any] | None:
     return payload
 
 
-def _confirm_llm_billing(auto_yes: bool = False) -> bool:
-    prompt = (
-        "LLM judge evaluation can trigger external API billing. "
-        "Do you want to continue with LLM judge metrics? [y/N]: "
-    )
-    if auto_yes:
-        print(f"[--yes] Auto-approving: {prompt.strip()}")
-        return True
-    if not sys.stdin.isatty():
-        print("Non-interactive session detected; defaulting to NO for billable LLM judge metrics.")
-        return False
-    answer = input(prompt).strip().lower()
-    return answer in {"y", "yes"}
-
-
-def _load_previous_llm_judge(output_path: Path) -> dict[str, Any] | None:
-    if not output_path.exists():
-        return None
-    try:
-        with output_path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except Exception as exc:  # pragma: no cover - malformed or unreadable historical report
-        print(f"Warning: unable to load previous report for llm_judge reuse: {exc}")
-        return None
-    if not isinstance(payload, dict):
-        return None
-    previous_judge = payload.get("llm_judge")
-    return previous_judge if isinstance(previous_judge, dict) else None
-
-
-def _apply_llm_judge_summary(
-    llm_judge_data: dict[str, Any],
-    free_text_distribution: dict[str, Any] | None,
-    quality_report_data: dict[str, Any],
-) -> dict[str, Any] | None:
-    if free_text_distribution is None:
-        free_text_distribution = {}
-    for column_name, judge_result in llm_judge_data.get("free_text_columns", {}).items():
-        entry = free_text_distribution.setdefault(column_name, {"text_column": column_name})
-        if isinstance(entry, dict):
-            entry["llm_judge_accuracy"] = judge_result.get("accuracy")
-    if isinstance(quality_report_data, dict):
-        quality_report_data["llm_accuracy_whole_row"] = llm_judge_data.get("whole_row", {}).get("accuracy")
-    return free_text_distribution
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run structured-column QA metrics using real and synthetic datasets."
@@ -149,17 +92,6 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Override generator_model from metrics.yml.",
-    )
-    parser.add_argument(
-        "--yes",
-        action="store_true",
-        help="Auto-approve LLM billing confirmation.",
-    )
-    parser.add_argument(
-        "--gpu-index",
-        type=int,
-        default=None,
-        help="Force a specific GPU for the local vLLM judge (bypasses auto selection).",
     )
     parser.add_argument(
         "--max-rows",
@@ -205,23 +137,6 @@ def main() -> None:
     tstr_text_weight_by_column = cfg.get("tstr_text_weight_by_column", {})
     if not isinstance(tstr_text_weight_by_column, dict):
         raise ValueError("tstr_text_weight_by_column must be a mapping in metrics.yml.")
-    judge_cfg = cfg.get("llm_judge", {})
-    if judge_cfg is None:
-        judge_cfg = {}
-    if not isinstance(judge_cfg, dict):
-        raise ValueError("llm_judge must be a mapping in metrics.yml when provided.")
-    judge_enabled = bool(judge_cfg.get("enabled", False))
-    if judge_enabled:
-        fallback_judge_cfg = _read_yaml(DEFAULT_LLM_CONFIG) if DEFAULT_LLM_CONFIG.exists() else {}
-        judge_cfg = {
-            **fallback_judge_cfg,
-            **judge_cfg,
-            "model": str(judge_cfg.get("model") or fallback_judge_cfg.get("model") or "").strip(),
-            "provider": str(judge_cfg.get("provider") or fallback_judge_cfg.get("provider") or "auto").strip()
-            or "auto",
-        }
-        if args.gpu_index is not None:
-            judge_cfg["gpu_index"] = args.gpu_index
 
     if isinstance(dataset_name, str) and dataset_name.strip():
         dataset_name = dataset_name.strip()
@@ -271,18 +186,14 @@ def main() -> None:
         target_column = str(cfg_target_column).strip() if cfg_target_column else None
         print(f"Metadata JSON not found at {metadata_path}; using free_text_columns from config.")
 
-    judge_model_name = judge_cfg.get("model", "").strip() if judge_enabled else ""
     real_path = _resolve_path(real_template, dataset_name=dataset_name, model=model)
     synthetic_path = _resolve_path(synthetic_template, dataset_name=dataset_name, model=model)
-    output_path = _resolve_path(output_template, dataset_name=dataset_name, model=model, judge_model=judge_model_name)
+    output_path = _resolve_path(output_template, dataset_name=dataset_name, model=model)
 
     if not real_path.exists():
         raise FileNotFoundError(f"Real data not found at: {real_path}")
     if not synthetic_path.exists():
         raise FileNotFoundError(f"Synthetic data not found at: {synthetic_path}")
-
-    auto_yes = args.yes or bool(judge_cfg.get("auto_yes", False))
-    llm_billing_approved = _confirm_llm_billing(auto_yes=auto_yes) if judge_enabled else False
 
     real_df = pd.read_csv(real_path)
     synthetic_df = pd.read_csv(synthetic_path)
@@ -316,6 +227,7 @@ def main() -> None:
         synthetic_df=synthetic_df,
         holdout_df=real_holdout,
         non_free_text_columns=structured_columns,
+        n_repeats=int(cfg.get("qa_repeats", 3)),
     )
 
     quality_report_data: dict[str, Any]
@@ -410,38 +322,6 @@ def main() -> None:
         tstr_data = {"skipped": True, "reason": "No valid target_column was configured."}
         print("Skipping TSTR metrics because no valid target_column was configured.")
 
-    llm_judge_data: dict[str, Any] | None = None
-    if judge_enabled:
-        if llm_billing_approved:
-            print("Evaluating LLM-as-a-judge metrics on free-text columns and whole rows...")
-            try:
-                llm_judge_data = evaluate_llm_judge(
-                    real_holdout_df=real_holdout.reset_index(drop=True),
-                    synthetic_df=synthetic_df.reset_index(drop=True),
-                    free_text_columns=text_columns,
-                    judge_cfg=judge_cfg,
-                )
-                free_text_distribution = _apply_llm_judge_summary(
-                    llm_judge_data,
-                    free_text_distribution,
-                    quality_report_data,
-                )
-            except Exception as exc:  # pragma: no cover - model/provider/env dependent
-                llm_judge_data = {"error": str(exc)}
-                print(f"Warning: unable to compute LLM-as-a-judge metrics: {exc}")
-        else:
-            llm_judge_data = _load_previous_llm_judge(output_path)
-            if llm_judge_data is not None:
-                free_text_distribution = _apply_llm_judge_summary(
-                    llm_judge_data,
-                    free_text_distribution,
-                    quality_report_data,
-                )
-                print("LLM billing permission denied; reusing llm_judge data from previous report.")
-            else:
-                print("LLM billing permission denied; continuing without llm_judge metrics.")
-
-
     payload = {
         "dataset_name": dataset_name,
         "model": model,
@@ -454,7 +334,6 @@ def main() -> None:
         "quality_report": quality_report_data,
         "joint_holdout_discriminator": joint_holdout_discriminator,
         "tstr": tstr_data,
-        "llm_judge": llm_judge_data,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

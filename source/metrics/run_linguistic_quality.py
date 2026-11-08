@@ -1,10 +1,10 @@
 """
-Linguistic fidelity metrics: word count, lexical diversity (MATTR), and
+Linguistic quality metrics: word count, lexical diversity (MATTR), and
 phrase repetition (Distinct-2), comparing real vs. synthetic free text.
 
 Complements the existing semantic/distributional metrics in
 source/metrics/free_text_metrics.py (Frechet/MMD on TF-IDF/SVD embeddings)
-and source/pipelines/run_llm_text_metrics.py (BERTScore/MAUVE) -- those
+and source/metrics/run_llm_text_metrics.py (BERTScore/MAUVE) -- those
 measure meaning and distinguishability; these measure observable surface
 properties (length, vocabulary richness, repetition) that those metrics do
 not directly capture. Motivated by recent findings that LLM-generated text
@@ -12,7 +12,7 @@ can be semantically fine while being less lexically/syntactically diverse
 than real text (Guo et al. 2025; Shaib et al. 2024).
 
 Produces, with no new LLM generation (everything is already on disk):
-  1. A main free-text-linguistic-fidelity result: real vs. synthetic, all
+  1. A main free-text-linguistic-quality result: real vs. synthetic, all
      three metrics, across the 6 free-text datasets x 3 k=5 generator
      configs.
   2. A retrieval-ablation extension: k=5 vs. k=0 (Gfl only, the only
@@ -27,7 +27,7 @@ at generation time -- so there is no train/holdout calibration step here:
 every real document is used as the single "real" reference.
 
 Usage:
-    python -m source.metrics.run_linguistic_fidelity
+    python -m source.metrics.run_linguistic_quality
 """
 from __future__ import annotations
 
@@ -47,8 +47,8 @@ from source.metrics.free_text_metrics import _clean_text_series
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = REPO_ROOT / "configs" / "metrics.yml"
 METADATA_ROOT = REPO_ROOT / ".metadata"
-OUTPUT_DIR = REPO_ROOT / "reports" / "linguistic_fidelity"
-TEX_OUTPUT_PATH = REPO_ROOT / "writing" / "linguistic_fidelity.tex"
+OUTPUT_DIR = REPO_ROOT / "reports" / "linguistic_quality"
+TEX_OUTPUT_PATH = REPO_ROOT / "writing" / "linguistic_quality.tex"
 
 DATASETS = ["adult_with_three", "Airbnb", "consumer_complaint", "fake_job_postings",
             "Kickstarter", "netflix_titles"]
@@ -73,7 +73,7 @@ def _load_metadata(dataset_name: str) -> dict[str, Any] | None:
 
 
 @dataclass
-class LinguisticFidelitySummary:
+class LinguisticQualitySummary:
     text_column: str
     variant: str
     n_real: int
@@ -198,7 +198,7 @@ def compute_token_budget(token_docs_by_corpus: dict[str, list[list[str]]]) -> tu
     return totals[limiting], limiting
 
 
-def evaluate_linguistic_fidelity(
+def evaluate_linguistic_quality(
     *,
     text_column: str,
     variant: str,
@@ -219,7 +219,7 @@ def evaluate_linguistic_fidelity(
     mattr_sy, mattr_sy_std, d2_sy, d2_sy_std = _seeded_mattr_distinct2(
         synthetic_lex_docs, token_budget, mattr_window, seeds)
 
-    summary = LinguisticFidelitySummary(
+    summary = LinguisticQualitySummary(
         text_column=text_column,
         variant=variant,
         n_real=int(len(real_text)),
@@ -307,7 +307,7 @@ def process_dataset(dataset_name: str, cfg: dict, random_state: int, holdout_fra
 
         col_results: dict[str, Any] = {}
         for model in syn_texts:
-            col_results[model] = evaluate_linguistic_fidelity(
+            col_results[model] = evaluate_linguistic_quality(
                 text_column=col,
                 variant=model,
                 real_text=real_text,
@@ -371,8 +371,8 @@ def build_main_table(all_results: dict[str, Any]) -> str:
     return r"""\begin{table}[htbp]
 \centering
 \footnotesize
-\caption{\textbf{Free-text linguistic fidelity.} Avg.\ words is the mean word count per entry. MATTR (moving-average type-token ratio) measures lexical diversity as the fraction of unique word types within a sliding window of text; higher values indicate a more varied vocabulary. Distinct-2 measures phrase repetition as the fraction of unique word bigrams within a document; higher values indicate less repetitive text. Each synthetic cell reports the mean across \Gfl, \GPT, and \Qfourteen.}
-\label{tab:linguistic-fidelity}
+\caption{\textbf{Free-text Linguistic quality.} Avg.\ words is the mean word count per entry. MATTR (moving-average type-token ratio) measures lexical diversity as the fraction of unique word types within a sliding window of text; higher values indicate a more varied vocabulary. Distinct-2 measures phrase repetition as the fraction of unique word bigrams within a document; higher values indicate less repetitive text. Each synthetic cell reports the mean across \Gfl, \GPT, and \Qfourteen.}
+\label{tab:linguistic-quality}
 \begin{tabular}{lcccccc}
 \toprule
  & \multicolumn{2}{c}{Words} & \multicolumn{2}{c}{MATTR} & \multicolumn{2}{c}{Distinct-2} \\
@@ -406,7 +406,7 @@ def build_ablation_table(all_results: dict[str, Any]) -> str:
     return r"""\begin{table}[htbp]
 \centering
 \small
-\caption{\textbf{Retrieval ablation: word count.} Unsigned gap between mean synthetic word count and the real reference value, averaged across each dataset's free-text columns, for the \Gfl generator with ($k=5$) and without ($k=0$) retrieval context. Lower is closer to real. Real reference values are reported in Table~\ref{tab:linguistic-fidelity}. MATTR and Distinct-2 showed no consistent direction between $k=5$ and $k=0$ across datasets and are omitted here; see Table~\ref{tab:linguistic-fidelity} for their $k=5$ values.}
+\caption{\textbf{Retrieval ablation: word count.} Unsigned gap between mean synthetic word count and the real reference value, averaged across each dataset's free-text columns, for the \Gfl generator with ($k=5$) and without ($k=0$) retrieval context. Lower is closer to real. Real reference values are reported in Table~\ref{tab:linguistic-quality}. MATTR and Distinct-2 showed no consistent direction between $k=5$ and $k=0$ across datasets and are omitted here; see Table~\ref{tab:linguistic-quality} for their $k=5$ values.}
 \label{tab:k0-linguistic}
 \begin{tabular}{lcc}
 \toprule
@@ -420,7 +420,7 @@ _GEN_LABEL = {"gemini-3.1-flash-lite": r"\Gfl", "gpt-6-luna": r"\GPT",
 
 def build_combined_generator_table(all_results: dict[str, Any]) -> str:
     """Single compact appendix table with per-generator synthetic values only
-    (no Real columns -- Real is already reported once in Table~tab:linguistic-fidelity)."""
+    (no Real columns -- Real is already reported once in Table~tab:linguistic-quality)."""
     rows = []
     for ds, col in _COL_ORDER:
         col_results = all_results.get(ds, {}).get(col, {})
@@ -438,8 +438,8 @@ def build_combined_generator_table(all_results: dict[str, Any]) -> str:
     return r"""\begin{table}[htbp]
 \centering
 \footnotesize
-\caption{\textbf{Free-text linguistic fidelity by generator.} Synthetic values for \Gfl, \GPT, and \Qfourteen individually; real-value references are reported once in Table~\ref{tab:linguistic-fidelity} and omitted here for space. \GPT's \dsComplaint value uses a separate $300$-row sample, as noted in Table~\ref{tab:linguistic-fidelity}.}
-\label{tab:linguistic-fidelity-bygen}
+\caption{\textbf{Free-text Linguistic quality by generator.} Synthetic values for \Gfl, \GPT, and \Qfourteen individually; real-value references are reported once in Table~\ref{tab:linguistic-quality} and omitted here for space. \GPT's \dsComplaint value uses a separate $300$-row sample, as noted in Table~\ref{tab:linguistic-quality}.}
+\label{tab:linguistic-quality-bygen}
 \begin{tabular}{lccc ccc ccc}
 \toprule
  & \multicolumn{3}{c}{Words} & \multicolumn{3}{c}{MATTR} & \multicolumn{3}{c}{Distinct-2} \\
@@ -453,24 +453,24 @@ def write_latex(all_results: dict[str, Any]) -> None:
     ablation_table = build_ablation_table(all_results)
     per_gen_table = build_combined_generator_table(all_results)
 
-    methods_para = r"""\subsection{Linguistic fidelity metrics}
-\label{app:linguistic-fidelity}
+    methods_para = r"""\subsection{Linguistic quality metrics}
+\label{app:linguistic-quality}
 
 For each free-text column, we compare surface-level linguistic properties of the synthetic text with those of the real data, motivated by evidence that LLM-generated text is less lexically and syntactically diverse than human text~\citep{guo2025linguisticdiversity,shaib2024templates}. We report the mean document length (whitespace word count), lexical diversity using the moving-average type--token ratio (MATTR)~\citep{covington2010mattr} with a window of 100 lowercased word tokens (a separate, regex-based tokenizer from the whitespace word-count above, chosen to avoid inflating apparent diversity on punctuation- or list-like fields such as \dsAirbnb amenities), and phrase repetition with corpus-level Distinct-2, the fraction of unique within-document bigrams. Unlike the structured-data fidelity metrics, free-text generation does not fit a model to a training split -- retrieval only reads individual real examples at generation time -- so we report real-holdout and synthetic values directly rather than using a train-vs-holdout calibration baseline.
 
 Because type--token statistics depend on text length, both lexical metrics are computed at a fixed token budget equal to the smallest token count among all corpora compared for that column (the real holdout data and every synthetic variant, including the $k=0$ ablation). Each corpus is sampled to this budget by shuffling whole documents, and results are averaged over five random seeds.
 """
 
-    results_para = r"""\subsection{Linguistic fidelity results}
-\label{app:linguistic-fidelity-results}
+    results_para = r"""\subsection{Linguistic quality results}
+\label{app:linguistic-quality-results}
 
-Table~\ref{tab:linguistic-fidelity} reports the three linguistic fidelity metrics across the three $k=5$ NIFTSy configurations, and Table~\ref{tab:k0-linguistic} compares word count with and without retrieval for the \Gfl generator; MATTR and Distinct-2 showed no consistent direction between retrieval settings across datasets and are omitted from that comparison. Table~\ref{tab:linguistic-fidelity-bygen} reports the complete per-generator results underlying Table~\ref{tab:linguistic-fidelity}'s averages.
+Table~\ref{tab:linguistic-quality} reports the three Linguistic quality metrics across the three $k=5$ NIFTSy configurations, and Table~\ref{tab:k0-linguistic} compares word count with and without retrieval for the \Gfl generator; MATTR and Distinct-2 showed no consistent direction between retrieval settings across datasets and are omitted from that comparison. Table~\ref{tab:linguistic-quality-bygen} reports the complete per-generator results underlying Table~\ref{tab:linguistic-quality}'s averages.
 """
 
-    out = "% AUTO-GENERATED by source/metrics/run_linguistic_fidelity.py -- not included from main.tex.\n"
+    out = "% AUTO-GENERATED by source/metrics/run_linguistic_quality.py -- not included from main.tex.\n"
     out += "% Paste the relevant pieces into main.tex (near tab:full-quality and tab:k0-ablation,\n"
     out += "% and into the evaluation-details / k0-ablation appendices) once reviewed.\n\n"
-    out += "\\paragraph{Linguistic fidelity.}\n% TODO: one lead-in sentence, see app:linguistic-fidelity-results for a starting point.\n\n"
+    out += "\\paragraph{Linguistic quality.}\n% TODO: one lead-in sentence, see app:linguistic-quality-results for a starting point.\n\n"
     out += main_table + "\n" + ablation_table + "\n" + methods_para + "\n" + results_para
     out += "\n" + per_gen_table
 
