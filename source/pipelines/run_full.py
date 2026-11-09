@@ -555,7 +555,11 @@ def main() -> None:
     )
     max_words_generation = int(metadata_max_words_generation)
     llm_cfg["max_words_generation"] = max_words_generation
+    llm_cfg["free_text_columns"] = list(text_columns)
+    metadata = _load_metadata(_resolve_json_metadata_path(dataset_name, tabular_cfg.get("json_path"))) or {}
+    llm_cfg["pii_columns"] = [str(col) for col in (metadata.get("pii_columns") or [])]
     print(f"- active text_columns: {text_columns}")
+    print(f"- pii_columns (excluded from neighbor profiles): {llm_cfg['pii_columns'] or '(none)'}")
     print(f"- resolved max_words_generation: {max_words_generation}")
     print(f"- target_column: {target_column or '(none)'}")
 

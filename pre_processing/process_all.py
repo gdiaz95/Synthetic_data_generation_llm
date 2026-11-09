@@ -5,9 +5,10 @@ from typing import Callable
 
 import Airbnb
 import Kickstarter
+import Spotify
 import consumer_complaint
+import english_teaching
 import fake_job_postings
-import harvard_reviews
 import student_satisfaction
 
 Processor = Callable[[], object]
@@ -17,7 +18,8 @@ PROCESSORS: list[tuple[str, Processor]] = [
     ("Kickstarter", Kickstarter.main),
     ("consumer_complaint", consumer_complaint.main),
     ("fake_job_postings", fake_job_postings.main),
-    ("harvard_reviews", harvard_reviews.main),
+    ("english_teaching", english_teaching.main),
+    ("Spotify", Spotify.main),
     ("student_satisfaction", student_satisfaction.main),
 ]
 

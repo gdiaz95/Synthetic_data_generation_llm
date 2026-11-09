@@ -163,9 +163,9 @@ done
 
 echo "### Runtime benchmark, n=500 (hosted) ###"
 run_step timing_benchmark ALL gfl "$RUN_LOG_DIR/timing_benchmark_gfl.log" \
-  "timing_complete Gfl" -- poetry run python -m source.metrics.run_timing_benchmark gfl
+  "timing_complete Gfl" -- flock reports/.timing_benchmark.lock poetry run python -m source.metrics.run_timing_benchmark gfl
 run_step timing_benchmark ALL gpt "$RUN_LOG_DIR/timing_benchmark_gpt.log" \
-  "timing_complete gpt-6-luna" -- poetry run python -m source.metrics.run_timing_benchmark gpt
+  "timing_complete gpt-6-luna" -- flock reports/.timing_benchmark.lock poetry run python -m source.metrics.run_timing_benchmark gpt
 
 echo
 echo "### Billing script done: $(date) ###"

@@ -160,7 +160,7 @@ echo "### Generation: GReaT baseline (Qwen-7B fine-tune, local), all datasets ##
 for ds in "${ALL_DATASETS[@]}"; do
   run_step generate "$ds" "$QSEVEN" "$RUN_LOG_DIR/${ds}_$(safe "$QSEVEN").generate.log" \
     "data_complete $ds $QSEVEN" -- \
-    poetry run python -m source.pipelines.run_great --dataset-name "$ds"
+    poetry run python -m source.pipelines.run_great --dataset-name "$ds" --gpu-index 0
 done
 
 # ============================ Metrics =====================================
@@ -228,7 +228,7 @@ run_step linguistic_quality ALL ALL "$RUN_LOG_DIR/linguistic_quality.log" \
 echo "### Runtime benchmark, n=500 (Qwen-14B, local) ###"
 run_step timing_benchmark ALL qwen "$RUN_LOG_DIR/timing_benchmark_qwen.log" \
   "timing_complete Qwen-14B" -- \
-  poetry run python -m source.metrics.run_timing_benchmark qwen
+  flock reports/.timing_benchmark.lock poetry run python -m source.metrics.run_timing_benchmark qwen
 
 echo "### Significance tests (need every judge's results) ###"
 log_file="$RUN_LOG_DIR/significance_tests.log"
