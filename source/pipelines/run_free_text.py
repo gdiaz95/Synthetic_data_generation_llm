@@ -135,35 +135,26 @@ def build_prompt_from_structured_with_neighbors(
     max_words_reader: int = 250,
     target_min_words: int | None = None,
     target_max_words: int | None = None,
-    neighbor_excluded_columns: set[str] | None = None,
 ) -> str:
-    def _profile(row: dict[str, Any], excluded: set[str]) -> dict[str, Any]:
-        profile: dict[str, Any] = {}
-        for key, value in row.items():
-            if key == text_column or key in excluded or value is None:
-                continue
-            if not isinstance(value, (list, tuple, dict, set)) and pd.isna(value):
-                continue
-            profile[key] = cap_words(value, max_words_reader) if isinstance(value, str) else value
-        return profile
-
-    # The target row is synthetic, so all of its columns are shown.
-    clean = _profile(fields, set())
+    clean: dict[str, Any] = {}
+    for key, value in fields.items():
+        if key == text_column or value is None:
+            continue
+        if not isinstance(value, (list, tuple, dict, set)) and pd.isna(value):
+            continue
+        if isinstance(value, str):
+            clean[key] = cap_words(value, max_words_reader)
+        else:
+            clean[key] = value
 
     snippets: list[str] = []
     if neighbor_rows:
-        # Neighbors are real rows: show their structured profile without PII
-        # columns and without their other free-text columns, plus the text
-        # of the column being generated.
-        excluded = set(neighbor_excluded_columns or ())
+        # Only the neighbor's free-text field is exposed; its real structured
+        # attributes never enter the prompt.
         for idx, row in enumerate(neighbor_rows[:max_neighbors], start=1):
             excerpt = cap_words(str(row.get(text_column, "")), max_words_reader)
             if excerpt:
-                snippets.append(
-                    f"- Neighbor {idx}\n"
-                    f"  profile: {_profile(row, excluded)}\n"
-                    f"  {text_column}: {excerpt}"
-                )
+                snippets.append(f"- Neighbor {idx}: {excerpt}")
 
     neighbor_block = "\n".join(snippets) if snippets else "(none)"
 
@@ -324,8 +315,6 @@ def generate_free_text_column(
                 max_words_reader=max_words_reader,
                 target_min_words=target_min_words,
                 target_max_words=target_max_words,
-                neighbor_excluded_columns=set(llm_cfg.get("free_text_columns", []))
-                | set(llm_cfg.get("pii_columns", [])),
             )
             prompts.append(prompt)
         return prompts

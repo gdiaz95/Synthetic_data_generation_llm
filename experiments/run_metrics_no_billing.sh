@@ -35,7 +35,7 @@ QA_REPEATS=3
 declare -A EXPECTED_ROWS=(
   [netflix_titles]=8807 [fake_job_postings]=17880 [adult_with_three]=20000
   [Kickstarter]=20000 [Airbnb]=20000 [consumer_complaint]=20000
-  [english_teaching]=3580 [Spotify]=20000 [student_satisfaction]=638
+  [english_teaching]=3580 [Spotify]=20000 [student_satisfaction]=580
 )
 
 FAILED=()
@@ -179,13 +179,12 @@ for ds in "${ALL_DATASETS[@]}"; do
   for gen in "${GENERATORS[@]}" "$QSEVEN"; do structured_metrics "$ds" "$gen"; done
 done
 
-echo "### Membership inference: NIFTSy (all datasets x 3 LLMs) ###"
+echo "### Privacy (identical match, DCR share, MIA): NPGC fit on the training split, 3 runs per dataset ###"
 for ds in "${ALL_DATASETS[@]}"; do
-  for gen in "${GENERATORS[@]}"; do
-    if ! data_complete "$ds" "$gen"; then wait_for membership "$ds" "$gen" "$(data_path "$ds" "$gen")"; continue; fi
-    run_step membership "$ds" "$gen" "$RUN_LOG_DIR/${ds}_$(safe "$gen").membership.log" \
-      "[ -f reports/membership/${ds}_$(safe "$gen")_membership.json ]" -- \
-      poetry run python -m source.metrics.run_membership --dataset-name "$ds" --generator-model "$gen"
+  for run in 1 2 3; do
+    run_step privacy "$ds" "run$run" "$RUN_LOG_DIR/${ds}_run${run}.privacy.log" \
+      "[ -f reports/privacy/${ds}_run${run}_privacy.json ]" -- \
+      poetry run python -m source.metrics.run_privacy --dataset-name "$ds" --run "$run"
   done
 done
 

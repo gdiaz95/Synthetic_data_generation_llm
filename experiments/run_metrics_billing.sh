@@ -31,7 +31,7 @@ declare -A JUDGE_PROVIDER=([gemini-3.1-flash-lite]=gemini [gemini-4-argon]=gemin
 declare -A EXPECTED_ROWS=(
   [netflix_titles]=8807 [fake_job_postings]=17880 [adult_with_three]=20000
   [Kickstarter]=20000 [Airbnb]=20000 [consumer_complaint]=20000
-  [english_teaching]=3580 [Spotify]=20000 [student_satisfaction]=638
+  [english_teaching]=3580 [Spotify]=20000 [student_satisfaction]=580
 )
 
 FAILED=()

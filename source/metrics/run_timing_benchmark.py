@@ -8,8 +8,8 @@ Three tracks, run as separate invocations of this script:
     running gpt-4o-mini combos in parallel against each other hit OpenAI's
     per-account rate limit hard; confirmed empirically before this script existed.
     Kept sequential for gpt-6-luna too as a precaution, not yet re-confirmed.)
-  - qwen: Qwen/Qwen2.5-14B-Instruct (local), parallel -- one dataset per GPU,
-    since each gets dedicated hardware and there's no shared API rate limit
+  - qwen: Qwen/Qwen2.5-14B-Instruct (local), sequential across datasets on a
+    single GPU (QWEN_GPU_INDEX, default 0), as described in the paper
 
 Invokes run_full.py as a subprocess per (dataset, generator) combo, then reads
 back the run-log JSON it writes under logs/ (which includes "timing" and
@@ -135,14 +135,12 @@ def track_sequential(label: str, model: str, provider: str, llm_config: Path | N
     print(f"=== track {label} ALL DONE ===", flush=True)
 
 
-def track_qwen_parallel() -> None:
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(DATASETS)) as ex:
-        futures = [
-            ex.submit(run_one, ds, "Qwen-14B", "Qwen/Qwen2.5-14B-Instruct", "local", gpu_index=i)
-            for i, ds in enumerate(DATASETS)
-        ]
-        concurrent.futures.wait(futures)
+QWEN_GPU_INDEX = 0
+
+
+def track_qwen_single_gpu() -> None:
+    for ds in DATASETS:
+        run_one(ds, "Qwen-14B", "Qwen/Qwen2.5-14B-Instruct", "local", gpu_index=QWEN_GPU_INDEX)
     print("=== track Qwen-14B ALL DONE ===", flush=True)
 
 
@@ -166,7 +164,7 @@ if __name__ == "__main__":
     elif track == "gpt":
         track_sequential("gpt-6-luna", "gpt-6-luna", "openai", llm_config=_ensure_gpt_config())
     elif track == "qwen":
-        track_qwen_parallel()
+        track_qwen_single_gpu()
     else:
         print("usage: python -m source.metrics.run_timing_benchmark [gfl|gpt|qwen]")
         sys.exit(1)
