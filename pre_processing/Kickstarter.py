@@ -28,8 +28,11 @@ def preprocess_columns(df: pd.DataFrame) -> pd.DataFrame:
     # `state` value; dropping them also restores the correct numeric dtypes
     # for `goal`, `pledged`, and `backers`.
     df = df[df["state"].isin(VALID_STATES)].copy()
-    df["goal"] = pd.to_numeric(df["goal"])
-    df["pledged"] = pd.to_numeric(df["pledged"])
+    # Funding amounts are rounded to whole currency units. Their range is
+    # heavy-tailed (goal up to 1e8), and NPGC models non-integer columns with a
+    # 100-bin equal-width histogram that collapses such a range into one bin.
+    df["goal"] = pd.to_numeric(df["goal"]).round().astype(int)
+    df["pledged"] = pd.to_numeric(df["pledged"]).round().astype(int)
     df["backers"] = pd.to_numeric(df["backers"]).astype(int)
 
     unnamed_cols = [column for column in df.columns if column.startswith("unnamed")]
