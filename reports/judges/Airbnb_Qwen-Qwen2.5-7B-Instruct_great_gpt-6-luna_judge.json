@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Airbnb",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 95663,
+      "completion_tokens": 56000,
+      "thinking_tokens": 0,
+      "total_tokens": 151663,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.89453125,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 229,
+      "incorrect": 27,
+      "predicted_real": 115,
+      "predicted_synthetic": 141,
+      "true_real_predicted_real": 108,
+      "true_real_predicted_synthetic": 20,
+      "true_synthetic_predicted_real": 7,
+      "true_synthetic_predicted_synthetic": 121,
+      "failed_to_parse": 0
+    }
+  }
+}

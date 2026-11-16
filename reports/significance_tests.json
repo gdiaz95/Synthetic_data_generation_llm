@@ -1,0 +1,1138 @@
+{
+  "metadata": {
+    "generated_at": "2026-11-16T20:26:42.113305+00:00",
+    "missing_inputs": []
+  },
+  "judge_comparison": {
+    "n_evaluations": 51,
+    "n_evaluations_complete": 51,
+    "bonferroni_alpha": 0.008333333333333333,
+    "mean_accuracy": {
+      "gemini-3.1-flash-lite": 0.6599264705882353,
+      "gemini-4-argon": 0.8411458333333334,
+      "gpt-6-luna": 0.7501531862745098,
+      "Qwen/Qwen2.5-14B-Instruct": 0.5151654411764706
+    },
+    "comparisons": [
+      {
+        "judge_a": "gemini-3.1-flash-lite",
+        "judge_b": "gemini-4-argon",
+        "judge_a_wins": 3,
+        "judge_b_wins": 48,
+        "ties": 0,
+        "n_non_tied": 51,
+        "p_two_sided": 1.9674928353197174e-11,
+        "significant_bonferroni": true
+      },
+      {
+        "judge_a": "gemini-3.1-flash-lite",
+        "judge_b": "gpt-6-luna",
+        "judge_a_wins": 9,
+        "judge_b_wins": 41,
+        "ties": 1,
+        "n_non_tied": 50,
+        "p_two_sided": 5.614100093254137e-06,
+        "significant_bonferroni": true
+      },
+      {
+        "judge_a": "gemini-3.1-flash-lite",
+        "judge_b": "Qwen/Qwen2.5-14B-Instruct",
+        "judge_a_wins": 41,
+        "judge_b_wins": 10,
+        "ties": 0,
+        "n_non_tied": 51,
+        "p_two_sided": 1.4737715885004832e-05,
+        "significant_bonferroni": true
+      },
+      {
+        "judge_a": "gemini-4-argon",
+        "judge_b": "gpt-6-luna",
+        "judge_a_wins": 44,
+        "judge_b_wins": 3,
+        "ties": 4,
+        "n_non_tied": 47,
+        "p_two_sided": 2.4647306418046355e-10,
+        "significant_bonferroni": true
+      },
+      {
+        "judge_a": "gemini-4-argon",
+        "judge_b": "Qwen/Qwen2.5-14B-Instruct",
+        "judge_a_wins": 49,
+        "judge_b_wins": 2,
+        "ties": 0,
+        "n_non_tied": 51,
+        "p_two_sided": 1.1786127629420662e-12,
+        "significant_bonferroni": true
+      },
+      {
+        "judge_a": "gpt-6-luna",
+        "judge_b": "Qwen/Qwen2.5-14B-Instruct",
+        "judge_a_wins": 47,
+        "judge_b_wins": 4,
+        "ties": 0,
+        "n_non_tied": 51,
+        "p_two_sided": 2.4163071543625847e-10,
+        "significant_bonferroni": true
+      }
+    ]
+  },
+  "retrieval_ablation": {
+    "k5_better": 10,
+    "k0_better": 11,
+    "ties": 3,
+    "n_non_tied": 21,
+    "p_two_sided": 1.0,
+    "n_pairs": 24,
+    "pairs": [
+      {
+        "dataset": "adult_with_three",
+        "judge": "gemini-3.1-flash-lite",
+        "k5": 0.5,
+        "k0": 0.5
+      },
+      {
+        "dataset": "adult_with_three",
+        "judge": "gemini-4-argon",
+        "k5": 0.9140625,
+        "k0": 0.71484375
+      },
+      {
+        "dataset": "adult_with_three",
+        "judge": "gpt-6-luna",
+        "k5": 0.51953125,
+        "k0": 0.515625
+      },
+      {
+        "dataset": "adult_with_three",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "k5": 0.484375,
+        "k0": 0.73828125
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "gemini-3.1-flash-lite",
+        "k5": 0.85546875,
+        "k0": 0.89453125
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "gemini-4-argon",
+        "k5": 0.9921875,
+        "k0": 0.9921875
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "gpt-6-luna",
+        "k5": 0.8984375,
+        "k0": 0.93359375
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "k5": 0.41796875,
+        "k0": 0.375
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "gemini-3.1-flash-lite",
+        "k5": 0.66015625,
+        "k0": 0.8359375
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "gemini-4-argon",
+        "k5": 0.98828125,
+        "k0": 0.984375
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "gpt-6-luna",
+        "k5": 0.94921875,
+        "k0": 0.9921875
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "k5": 0.5625,
+        "k0": 0.56640625
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "gemini-3.1-flash-lite",
+        "k5": 0.69140625,
+        "k0": 0.62109375
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "gemini-4-argon",
+        "k5": 0.9921875,
+        "k0": 0.99609375
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "gpt-6-luna",
+        "k5": 0.9765625,
+        "k0": 0.9765625
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "k5": 0.57421875,
+        "k0": 0.5234375
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "gemini-3.1-flash-lite",
+        "k5": 0.76171875,
+        "k0": 0.9140625
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "gemini-4-argon",
+        "k5": 0.96484375,
+        "k0": 0.95703125
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "gpt-6-luna",
+        "k5": 0.9296875,
+        "k0": 0.9140625
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "k5": 0.5859375,
+        "k0": 0.5546875
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "gemini-3.1-flash-lite",
+        "k5": 0.984375,
+        "k0": 0.98828125
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "gemini-4-argon",
+        "k5": 1.0,
+        "k0": 0.99609375
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "gpt-6-luna",
+        "k5": 0.94140625,
+        "k0": 0.953125
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "k5": 0.81640625,
+        "k0": 0.78515625
+      }
+    ]
+  },
+  "qseven_whole_row": {
+    "niftsy_better": 19,
+    "qseven_better": 12,
+    "ties": 5,
+    "n_non_tied": 31,
+    "p_two_sided": 0.28104151505976915,
+    "n_pairs": 36,
+    "pairs": [
+      {
+        "dataset": "adult_with_three",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.5,
+        "qseven": 0.5
+      },
+      {
+        "dataset": "adult_with_three",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.9140625,
+        "qseven": 0.72265625
+      },
+      {
+        "dataset": "adult_with_three",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.51953125,
+        "qseven": 0.53125
+      },
+      {
+        "dataset": "adult_with_three",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.484375,
+        "qseven": 0.421875
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.85546875,
+        "qseven": 0.84765625
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.9921875,
+        "qseven": 0.9765625
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.8984375,
+        "qseven": 0.89453125
+      },
+      {
+        "dataset": "Airbnb",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.41796875,
+        "qseven": 0.7265625
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.66015625,
+        "qseven": 1.0
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.98828125,
+        "qseven": 0.98828125
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.94921875,
+        "qseven": 1.0
+      },
+      {
+        "dataset": "consumer_complaint",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.5625,
+        "qseven": 0.9921875
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.69140625,
+        "qseven": 0.66796875
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.9921875,
+        "qseven": 0.9765625
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.9765625,
+        "qseven": 0.734375
+      },
+      {
+        "dataset": "fake_job_postings",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.57421875,
+        "qseven": 0.6171875
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.76171875,
+        "qseven": 0.9765625
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.96484375,
+        "qseven": 0.9765625
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.9296875,
+        "qseven": 0.94921875
+      },
+      {
+        "dataset": "Kickstarter",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.5859375,
+        "qseven": 0.98046875
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.984375,
+        "qseven": 0.98828125
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "gemini-4-argon",
+        "niftsy": 1.0,
+        "qseven": 0.98828125
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.94140625,
+        "qseven": 0.95703125
+      },
+      {
+        "dataset": "netflix_titles",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.81640625,
+        "qseven": 0.92578125
+      },
+      {
+        "dataset": "english_teaching",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.50390625,
+        "qseven": 0.50390625
+      },
+      {
+        "dataset": "english_teaching",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.99609375,
+        "qseven": 0.98046875
+      },
+      {
+        "dataset": "english_teaching",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.51171875,
+        "qseven": 0.5
+      },
+      {
+        "dataset": "english_teaching",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.5703125,
+        "qseven": 0.87109375
+      },
+      {
+        "dataset": "Spotify",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.953125,
+        "qseven": 0.953125
+      },
+      {
+        "dataset": "Spotify",
+        "judge": "gemini-4-argon",
+        "niftsy": 0.9921875,
+        "qseven": 0.99609375
+      },
+      {
+        "dataset": "Spotify",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.9140625,
+        "qseven": 0.92578125
+      },
+      {
+        "dataset": "Spotify",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.7265625,
+        "qseven": 0.6875
+      },
+      {
+        "dataset": "student_satisfaction",
+        "judge": "gemini-3.1-flash-lite",
+        "niftsy": 0.9672131147540983,
+        "qseven": 0.9959016393442623
+      },
+      {
+        "dataset": "student_satisfaction",
+        "judge": "gemini-4-argon",
+        "niftsy": 1.0,
+        "qseven": 1.0
+      },
+      {
+        "dataset": "student_satisfaction",
+        "judge": "gpt-6-luna",
+        "niftsy": 0.9508196721311475,
+        "qseven": 0.9795081967213115
+      },
+      {
+        "dataset": "student_satisfaction",
+        "judge": "Qwen/Qwen2.5-14B-Instruct",
+        "niftsy": 0.7663934426229508,
+        "qseven": 0.9057377049180327
+      }
+    ]
+  },
+  "qseven_structured_fidelity": {
+    "niftsy_better": 8,
+    "qseven_better": 1,
+    "ties": 0,
+    "n_non_tied": 9,
+    "p_two_sided": 0.0390625,
+    "n_pairs": 9,
+    "pairs": [
+      {
+        "dataset": "adult_with_three",
+        "niftsy": 0.9191126,
+        "qseven": 0.8120938
+      },
+      {
+        "dataset": "Airbnb",
+        "niftsy": 0.8948727,
+        "qseven": 0.6655002
+      },
+      {
+        "dataset": "consumer_complaint",
+        "niftsy": 0.8869272,
+        "qseven": 0.3951865
+      },
+      {
+        "dataset": "fake_job_postings",
+        "niftsy": 0.8488556,
+        "qseven": 0.5222439
+      },
+      {
+        "dataset": "Kickstarter",
+        "niftsy": 0.9177455,
+        "qseven": 0.0813683
+      },
+      {
+        "dataset": "netflix_titles",
+        "niftsy": 0.6703316,
+        "qseven": 0.0772785
+      },
+      {
+        "dataset": "english_teaching",
+        "niftsy": 0.8690941,
+        "qseven": 0.5400441
+      },
+      {
+        "dataset": "Spotify",
+        "niftsy": 0.8852709,
+        "qseven": 0.7902174
+      },
+      {
+        "dataset": "student_satisfaction",
+        "niftsy": 0.6562639,
+        "qseven": 0.6705301
+      }
+    ]
+  },
+  "retrieval_text_quality": {
+    "frechet": {
+      "k5_better": 7,
+      "k0_better": 4,
+      "ties": 0,
+      "n_non_tied": 11,
+      "p_two_sided": 0.548828125,
+      "n_pairs": 11,
+      "pairs": [
+        {
+          "dataset": "adult_with_three",
+          "column": "job_description",
+          "k5": 11.000057493877277,
+          "k0": 30.592416748054813
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "daily_tasks",
+          "k5": 15.296640389734485,
+          "k0": 19.787673656634514
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "work_snippet",
+          "k5": 18.368837530693703,
+          "k0": 19.448450228959956
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "name",
+          "k5": 18.0715732895604,
+          "k0": 28.996065785728845
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "amenities",
+          "k5": 31.580641353407156,
+          "k0": 65.3169436930547
+        },
+        {
+          "dataset": "consumer_complaint",
+          "column": "consumer_complaint_narrative",
+          "k5": 21.702589708235664,
+          "k0": 16.53212348603144
+        },
+        {
+          "dataset": "fake_job_postings",
+          "column": "description",
+          "k5": 10.912910052462145,
+          "k0": 13.229418531316508
+        },
+        {
+          "dataset": "Kickstarter",
+          "column": "name",
+          "k5": 19.18868156330082,
+          "k0": 17.20646911372374
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "title",
+          "k5": 6.065678965977356,
+          "k0": 4.00856272371698
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "cast",
+          "k5": 3.7529712205907875,
+          "k0": 11.177991560922562
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "description",
+          "k5": 7.064695878749707,
+          "k0": 6.995723497842137
+        }
+      ]
+    },
+    "mmd": {
+      "k5_better": 10,
+      "k0_better": 1,
+      "ties": 0,
+      "n_non_tied": 11,
+      "p_two_sided": 0.01171875,
+      "n_pairs": 11,
+      "pairs": [
+        {
+          "dataset": "adult_with_three",
+          "column": "job_description",
+          "k5": 114.31617764011871,
+          "k0": 318.8371326062392
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "daily_tasks",
+          "k5": 115.2975096582097,
+          "k0": 284.7036556777187
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "work_snippet",
+          "k5": 85.69057223089723,
+          "k0": 529.7458205426701
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "name",
+          "k5": 185.0284795168725,
+          "k0": 531.6634558896106
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "amenities",
+          "k5": 218.28374053741013,
+          "k0": 919.5181941260884
+        },
+        {
+          "dataset": "consumer_complaint",
+          "column": "consumer_complaint_narrative",
+          "k5": 193.73097122153808,
+          "k0": 204.50335885117065
+        },
+        {
+          "dataset": "fake_job_postings",
+          "column": "description",
+          "k5": 245.35472207923343,
+          "k0": 657.1667759428364
+        },
+        {
+          "dataset": "Kickstarter",
+          "column": "name",
+          "k5": 221.81623039164916,
+          "k0": 197.82580516447314
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "title",
+          "k5": 103.803717241121,
+          "k0": 185.99321531418934
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "cast",
+          "k5": 53.73067122954332,
+          "k0": 273.61783120627575
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "description",
+          "k5": 66.17640607095402,
+          "k0": 110.14203102821507
+        }
+      ]
+    },
+    "bertscore": {
+      "k5_better": 10,
+      "k0_better": 1,
+      "ties": 0,
+      "n_non_tied": 11,
+      "p_two_sided": 0.01171875,
+      "n_pairs": 11,
+      "pairs": [
+        {
+          "dataset": "adult_with_three",
+          "column": "job_description",
+          "k5": 0.8001766204833984,
+          "k0": 0.7490726709365845
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "daily_tasks",
+          "k5": 0.77126145362854,
+          "k0": 0.7403600811958313
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "work_snippet",
+          "k5": 0.7894966006278992,
+          "k0": 0.7323813438415527
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "name",
+          "k5": 0.7061207890510559,
+          "k0": 0.6620506048202515
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "amenities",
+          "k5": 0.79730224609375,
+          "k0": 0.7260977029800415
+        },
+        {
+          "dataset": "consumer_complaint",
+          "column": "consumer_complaint_narrative",
+          "k5": 0.6934205889701843,
+          "k0": 0.7379568219184875
+        },
+        {
+          "dataset": "fake_job_postings",
+          "column": "description",
+          "k5": 0.7356398105621338,
+          "k0": 0.7301006317138672
+        },
+        {
+          "dataset": "Kickstarter",
+          "column": "name",
+          "k5": 0.6861916184425354,
+          "k0": 0.6697661876678467
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "title",
+          "k5": 0.6625328660011292,
+          "k0": 0.615949273109436
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "cast",
+          "k5": 0.7285411953926086,
+          "k0": 0.6304594278335571
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "description",
+          "k5": 0.7217419147491455,
+          "k0": 0.69648277759552
+        }
+      ]
+    },
+    "mauve": {
+      "k5_better": 8,
+      "k0_better": 3,
+      "ties": 0,
+      "n_non_tied": 11,
+      "p_two_sided": 0.2265625,
+      "n_pairs": 11,
+      "pairs": [
+        {
+          "dataset": "adult_with_three",
+          "column": "job_description",
+          "k5": 0.11508823049753047,
+          "k0": 0.005273794671984916
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "daily_tasks",
+          "k5": 0.004988565395957938,
+          "k0": 0.004072096261961255
+        },
+        {
+          "dataset": "adult_with_three",
+          "column": "work_snippet",
+          "k5": 0.0667064473221706,
+          "k0": 0.004437499309462958
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "name",
+          "k5": 0.22177982174046784,
+          "k0": 0.007023875316010622
+        },
+        {
+          "dataset": "Airbnb",
+          "column": "amenities",
+          "k5": 0.0040720962619612555,
+          "k0": 0.004072096261961256
+        },
+        {
+          "dataset": "consumer_complaint",
+          "column": "consumer_complaint_narrative",
+          "k5": 0.006004075530388366,
+          "k0": 0.011774208358844771
+        },
+        {
+          "dataset": "fake_job_postings",
+          "column": "description",
+          "k5": 0.006910869836639461,
+          "k0": 0.007101470784172838
+        },
+        {
+          "dataset": "Kickstarter",
+          "column": "name",
+          "k5": 0.3164798690561207,
+          "k0": 0.009264992470099135
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "title",
+          "k5": 0.3547873512815398,
+          "k0": 0.004345211108859876
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "cast",
+          "k5": 0.7706608043464257,
+          "k0": 0.004409641475434741
+        },
+        {
+          "dataset": "netflix_titles",
+          "column": "description",
+          "k5": 0.10684840651984498,
+          "k0": 0.004542211258035606
+        }
+      ]
+    }
+  },
+  "quality_control": {
+    "degenerate": [
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Airbnb | gpt-6-luna | judge=gemini-3.1-flash-lite | amenities",
+        "accuracy": 0.5078125,
+        "majority_class_share": 0.9921875,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Airbnb | Qwen/Qwen2.5-14B-Instruct | judge=gemini-3.1-flash-lite | amenities",
+        "accuracy": 0.50390625,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gemini-4-argon | job_description",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gemini-4-argon | daily_tasks",
+        "accuracy": 0.50390625,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gemini-4-argon | work_snippet",
+        "accuracy": 0.5078125,
+        "majority_class_share": 0.9921875,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gemini-4-argon | job_description",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gemini-4-argon | daily_tasks",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gemini-4-argon | work_snippet",
+        "accuracy": 0.515625,
+        "majority_class_share": 0.984375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gemini-4-argon | job_description",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gemini-4-argon | daily_tasks",
+        "accuracy": 0.49609375,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gemini-4-argon | work_snippet",
+        "accuracy": 0.5,
+        "majority_class_share": 0.984375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gpt-6-luna | job_description",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gpt-6-luna | daily_tasks",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gpt-6-luna | work_snippet",
+        "accuracy": 0.4921875,
+        "majority_class_share": 0.9921875,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=gpt-6-luna | whole_row",
+        "accuracy": 0.51953125,
+        "majority_class_share": 0.98046875,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gpt-6-luna | job_description",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gpt-6-luna | daily_tasks",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gpt-6-luna | work_snippet",
+        "accuracy": 0.50390625,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gpt-6-luna | whole_row",
+        "accuracy": 0.5234375,
+        "majority_class_share": 0.9765625,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gpt-6-luna | job_description",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gpt-6-luna | daily_tasks",
+        "accuracy": 0.45703125,
+        "majority_class_share": 0.95703125,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gpt-6-luna | work_snippet",
+        "accuracy": 0.48046875,
+        "majority_class_share": 0.96484375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=gpt-6-luna | whole_row",
+        "accuracy": 0.5234375,
+        "majority_class_share": 0.9765625,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=Qwen/Qwen2.5-14B-Instruct | job_description",
+        "accuracy": 0.49609375,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite | judge=Qwen/Qwen2.5-14B-Instruct | work_snippet",
+        "accuracy": 0.49609375,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Airbnb | gemini-3.1-flash-lite | judge=Qwen/Qwen2.5-14B-Instruct | name",
+        "accuracy": 0.51171875,
+        "majority_class_share": 0.95703125,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Kickstarter | gemini-3.1-flash-lite | judge=Qwen/Qwen2.5-14B-Instruct | name",
+        "accuracy": 0.5078125,
+        "majority_class_share": 0.9609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=Qwen/Qwen2.5-14B-Instruct | job_description",
+        "accuracy": 0.49609375,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=Qwen/Qwen2.5-14B-Instruct | work_snippet",
+        "accuracy": 0.49609375,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Airbnb | gpt-6-luna | judge=Qwen/Qwen2.5-14B-Instruct | name",
+        "accuracy": 0.5234375,
+        "majority_class_share": 0.96875,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Kickstarter | gpt-6-luna | judge=Qwen/Qwen2.5-14B-Instruct | name",
+        "accuracy": 0.5,
+        "majority_class_share": 0.953125,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=Qwen/Qwen2.5-14B-Instruct | job_description",
+        "accuracy": 0.51171875,
+        "majority_class_share": 0.98046875,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-14B-Instruct | judge=Qwen/Qwen2.5-14B-Instruct | work_snippet",
+        "accuracy": 0.5078125,
+        "majority_class_share": 0.984375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Airbnb | Qwen/Qwen2.5-14B-Instruct | judge=Qwen/Qwen2.5-14B-Instruct | name",
+        "accuracy": 0.51171875,
+        "majority_class_share": 0.95703125,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "consumer_complaint | Qwen/Qwen2.5-14B-Instruct | judge=Qwen/Qwen2.5-14B-Instruct | consumer_complaint_narrative",
+        "accuracy": 0.50390625,
+        "majority_class_share": 0.96484375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "Kickstarter | Qwen/Qwen2.5-14B-Instruct | judge=Qwen/Qwen2.5-14B-Instruct | name",
+        "accuracy": 0.5078125,
+        "majority_class_share": 0.9609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "consumer_complaint | Qwen/Qwen2.5-14B-Instruct | judge=Qwen/Qwen2.5-14B-Instruct | whole_row",
+        "accuracy": 0.53515625,
+        "majority_class_share": 0.96484375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite_k0 | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite_k0 | judge=gpt-6-luna | whole_row",
+        "accuracy": 0.515625,
+        "majority_class_share": 0.984375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-7B-Instruct_great | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "english_teaching | gemini-3.1-flash-lite | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.50390625,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "english_teaching | Qwen/Qwen2.5-7B-Instruct_great | judge=gemini-3.1-flash-lite | whole_row",
+        "accuracy": 0.50390625,
+        "majority_class_share": 0.99609375,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "english_teaching | gemini-3.1-flash-lite | judge=gpt-6-luna | whole_row",
+        "accuracy": 0.51171875,
+        "majority_class_share": 0.98828125,
+        "parse_failure_share": 0.0
+      },
+      {
+        "evaluation": "english_teaching | Qwen/Qwen2.5-7B-Instruct_great | judge=gpt-6-luna | whole_row",
+        "accuracy": 0.5,
+        "majority_class_share": 1.0,
+        "parse_failure_share": 0.0
+      }
+    ],
+    "parse_failures": [
+      {
+        "evaluation": "netflix_titles | gemini-3.1-flash-lite | judge=gemini-4-argon | cast",
+        "accuracy": 0.78125,
+        "majority_class_share": 0.51171875,
+        "parse_failure_share": 0.125
+      },
+      {
+        "evaluation": "adult_with_three | gpt-6-luna | judge=gemini-4-argon | whole_row",
+        "accuracy": 0.82421875,
+        "majority_class_share": 0.4921875,
+        "parse_failure_share": 0.125
+      },
+      {
+        "evaluation": "Airbnb | Qwen/Qwen2.5-14B-Instruct | judge=gemini-4-argon | amenities",
+        "accuracy": 0.5390625,
+        "majority_class_share": 0.53125,
+        "parse_failure_share": 0.25
+      },
+      {
+        "evaluation": "adult_with_three | gemini-3.1-flash-lite_k0 | judge=gemini-4-argon | whole_row",
+        "accuracy": 0.71484375,
+        "majority_class_share": 0.421875,
+        "parse_failure_share": 0.25
+      },
+      {
+        "evaluation": "adult_with_three | Qwen/Qwen2.5-7B-Instruct_great | judge=gemini-4-argon | whole_row",
+        "accuracy": 0.72265625,
+        "majority_class_share": 0.48046875,
+        "parse_failure_share": 0.125
+      }
+    ]
+  }
+}

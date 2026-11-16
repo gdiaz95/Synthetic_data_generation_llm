@@ -1,0 +1,37 @@
+{
+  "dataset_name": "student_satisfaction",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-3.1-flash-lite",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 65960,
+      "completion_tokens": 1383,
+      "thinking_tokens": 143963,
+      "total_tokens": 211306,
+      "requests": 244
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "accuracy": 0.9959016393442623,
+      "n_examples": 244,
+      "n_real": 116,
+      "n_synthetic": 128,
+      "correct": 243,
+      "incorrect": 1,
+      "predicted_real": 115,
+      "predicted_synthetic": 129,
+      "true_real_predicted_real": 115,
+      "true_real_predicted_synthetic": 1,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

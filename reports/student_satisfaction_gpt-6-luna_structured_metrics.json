@@ -1,0 +1,119 @@
+{
+  "dataset_name": "student_satisfaction",
+  "model": "gpt-6-luna",
+  "real_data_path": "data/raw/student_satisfaction.csv",
+  "synthetic_data_path": "data/processed/student_satisfaction_gpt-6-luna.csv",
+  "structured_columns": [
+    "SN",
+    "Total Feedback Given",
+    "Total Configured",
+    "Questions",
+    "Weightage 1",
+    "Weightage 2",
+    "Weightage 3",
+    "Weightage 4",
+    "Weightage 5",
+    "Average/ Percentage",
+    "Course Name ",
+    "Basic Course"
+  ],
+  "free_text_columns": [],
+  "metrics_qa": {
+    "overall_accuracy": 0.6522947,
+    "univariate_accuracy": 0.8784483,
+    "bivariate_accuracy": 0.657942,
+    "trivariate_accuracy": 0.4204938,
+    "discriminator_auc": 0.879,
+    "identical_matches": 0.0,
+    "dcr_training": 0.412,
+    "dcr_holdout": 0.418,
+    "dcr_share": 0.595,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.6522947,
+        "univariate_accuracy": 0.8784483,
+        "bivariate_accuracy": 0.657942,
+        "trivariate_accuracy": 0.4204938,
+        "discriminator_auc": 0.821,
+        "identical_matches": 0.0,
+        "dcr_training": 0.412,
+        "dcr_holdout": 0.418,
+        "dcr_share": 0.543
+      },
+      {
+        "overall_accuracy": 0.6511368,
+        "univariate_accuracy": 0.87773,
+        "bivariate_accuracy": 0.6571065,
+        "trivariate_accuracy": 0.4185739,
+        "discriminator_auc": 0.883,
+        "identical_matches": 0.0,
+        "dcr_training": 0.631,
+        "dcr_holdout": 0.637,
+        "dcr_share": 0.595
+      },
+      {
+        "overall_accuracy": 0.6565517,
+        "univariate_accuracy": 0.8794533,
+        "bivariate_accuracy": 0.6639241,
+        "trivariate_accuracy": 0.4262776,
+        "discriminator_auc": 0.879,
+        "identical_matches": 0.0,
+        "dcr_training": 0.245,
+        "dcr_holdout": 0.241,
+        "dcr_share": 0.638
+      }
+    ]
+  },
+  "free_text_distribution": null,
+  "quality_report": {
+    "overall_score": 0.7513577268941557,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.9260057471264368
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.5767097066618746
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 464,
+    "n_real_holdout": 116,
+    "n_synthetic": 580,
+    "structured_columns": [
+      "SN",
+      "Total Feedback Given",
+      "Total Configured",
+      "Questions",
+      "Weightage 1",
+      "Weightage 2",
+      "Weightage 3",
+      "Weightage 4",
+      "Weightage 5",
+      "Average/ Percentage",
+      "Course Name ",
+      "Basic Course"
+    ],
+    "text_columns": [],
+    "structured_block": {
+      "width": 12,
+      "weight": 1.0
+    },
+    "text_blocks": {},
+    "total_feature_width": 12,
+    "auc_real_vs_holdout": 0.5071343638525565,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.6570749108204518,
+    "accuracy_synth_vs_holdout": 0.8333333333333334,
+    "auc_drop_real_to_synth": 0.14994054696789527,
+    "accuracy_drop_real_to_synth": 0.033333333333333326
+  },
+  "tstr": {
+    "skipped": true,
+    "reason": "No valid target_column was configured."
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "dataset_name": "consumer_complaint",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-3.1-flash-lite",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 102825,
+      "completion_tokens": 1432,
+      "thinking_tokens": 146201,
+      "total_tokens": 250458,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "accuracy": 0.8359375,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 214,
+      "incorrect": 42,
+      "predicted_real": 170,
+      "predicted_synthetic": 86,
+      "true_real_predicted_real": 128,
+      "true_real_predicted_synthetic": 0,
+      "true_synthetic_predicted_real": 42,
+      "true_synthetic_predicted_synthetic": 86,
+      "failed_to_parse": 0
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "dataset_name": "student_satisfaction",
+  "free_text_columns": [],
+  "max_words_generation": 80,
+  "shape": [
+    580,
+    12
+  ],
+  "pii_columns": []
+}

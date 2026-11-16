@@ -178,6 +178,8 @@ echo "### Structured metrics: NIFTSy (all datasets x 3 LLMs) and GReaT (all data
 for ds in "${ALL_DATASETS[@]}"; do
   for gen in "${GENERATORS[@]}" "$QSEVEN"; do structured_metrics "$ds" "$gen"; done
 done
+echo "### Structured metrics (free-text distribution): retrieval ablation, Gfl k=0 ###"
+for ds in "${FREE_TEXT_DATASETS[@]}"; do structured_metrics "$ds" "$GFL_K0"; done
 
 echo "### Privacy (identical match, DCR share, MIA): NPGC fit on the training split, 3 runs per dataset ###"
 for ds in "${ALL_DATASETS[@]}"; do
@@ -188,9 +190,9 @@ for ds in "${ALL_DATASETS[@]}"; do
   done
 done
 
-echo "### BERTScore / MAUVE: NIFTSy free-text datasets x 3 LLMs ###"
+echo "### BERTScore / MAUVE: NIFTSy free-text datasets x 3 LLMs and the retrieval ablation (Gfl k=0) ###"
 for ds in "${FREE_TEXT_DATASETS[@]}"; do
-  for gen in "${GENERATORS[@]}"; do
+  for gen in "${GENERATORS[@]}" "$GFL_K0"; do
     if ! data_complete "$ds" "$gen"; then wait_for llm_text_metrics "$ds" "$gen" "$(data_path "$ds" "$gen")"; continue; fi
     run_step llm_text_metrics "$ds" "$gen" "$RUN_LOG_DIR/${ds}_$(safe "$gen").llm_text_metrics.log" \
       "[ -f reports/llm_metrics/${ds}_$(safe "$gen")_llm_text_metrics.json ]" -- \

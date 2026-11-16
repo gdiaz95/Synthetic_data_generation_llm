@@ -1,0 +1,37 @@
+{
+  "dataset_name": "student_satisfaction",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 75865,
+      "completion_tokens": 1595,
+      "thinking_tokens": 0,
+      "total_tokens": 77460,
+      "requests": 244
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.9057377049180327,
+      "n_examples": 244,
+      "n_real": 116,
+      "n_synthetic": 128,
+      "correct": 221,
+      "incorrect": 23,
+      "predicted_real": 113,
+      "predicted_synthetic": 131,
+      "true_real_predicted_real": 103,
+      "true_real_predicted_synthetic": 13,
+      "true_synthetic_predicted_real": 10,
+      "true_synthetic_predicted_synthetic": 118,
+      "failed_to_parse": 0
+    }
+  }
+}

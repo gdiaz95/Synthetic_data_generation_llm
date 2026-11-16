@@ -1,0 +1,105 @@
+{
+  "dataset": "consumer_complaint",
+  "run": 3,
+  "n_train": 16000,
+  "n_holdout": 4000,
+  "n_synthetic": 20000,
+  "identical_matches": 0.0,
+  "identical_matches_holdout": 0.0,
+  "identical_matches_training_holdout": 0.002,
+  "dcr_share": 0.522,
+  "qa_repeats": 3,
+  "qa_runs": [
+    {
+      "overall_accuracy": 0.8881402,
+      "univariate_accuracy": 0.9873107,
+      "bivariate_accuracy": 0.8963242,
+      "trivariate_accuracy": 0.7807856,
+      "discriminator_auc": 0.99,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.002,
+      "dcr_training": 0.165,
+      "dcr_holdout": 0.167,
+      "dcr_share": 0.536
+    },
+    {
+      "overall_accuracy": 0.8881402,
+      "univariate_accuracy": 0.9873107,
+      "bivariate_accuracy": 0.8963242,
+      "trivariate_accuracy": 0.7807856,
+      "discriminator_auc": 0.988,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.002,
+      "dcr_training": 0.183,
+      "dcr_holdout": 0.183,
+      "dcr_share": 0.522
+    },
+    {
+      "overall_accuracy": 0.8881402,
+      "univariate_accuracy": 0.9873107,
+      "bivariate_accuracy": 0.8963242,
+      "trivariate_accuracy": 0.7807856,
+      "discriminator_auc": 0.989,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.002,
+      "dcr_training": 0.215,
+      "dcr_holdout": 0.215,
+      "dcr_share": 0.514
+    }
+  ],
+  "mia": {
+    "mia_auroc": 0.5105,
+    "mia_auroc_worst_case": 0.5105,
+    "n_train": 16000,
+    "n_holdout": 4000,
+    "n_synthetic": 20000,
+    "mean_dist_train": 6.1538,
+    "mean_dist_holdout": 8.5078,
+    "columns_used": [
+      "product",
+      "sub_product",
+      "issue",
+      "company",
+      "state",
+      "tags",
+      "consumer_consent_provided",
+      "submitted_via",
+      "company_response_to_consumer",
+      "timely_response",
+      "consumer_disputed",
+      "received_year",
+      "received_month",
+      "received_day"
+    ]
+  },
+  "high_cardinality_label_columns": [
+    "company"
+  ],
+  "mia_without_label_columns": {
+    "mia_auroc": 0.4932,
+    "mia_auroc_worst_case": 0.5068,
+    "n_train": 16000,
+    "n_holdout": 4000,
+    "n_synthetic": 20000,
+    "mean_dist_train": 3.2577,
+    "mean_dist_holdout": 3.2311,
+    "columns_used": [
+      "product",
+      "sub_product",
+      "issue",
+      "state",
+      "tags",
+      "consumer_consent_provided",
+      "submitted_via",
+      "company_response_to_consumer",
+      "timely_response",
+      "consumer_disputed",
+      "received_year",
+      "received_month",
+      "received_day"
+    ]
+  }
+}

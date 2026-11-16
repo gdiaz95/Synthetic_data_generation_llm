@@ -1,0 +1,181 @@
+{
+  "dataset_name": "fake_job_postings",
+  "model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "real_data_path": "data/raw/fake_job_postings.csv",
+  "synthetic_data_path": "data/processed/fake_job_postings_Qwen-Qwen2.5-7B-Instruct_great.csv",
+  "structured_columns": [
+    "title",
+    "location",
+    "department",
+    "salary_range",
+    "telecommuting",
+    "has_company_logo",
+    "has_questions",
+    "employment_type",
+    "required_experience",
+    "required_education",
+    "industry",
+    "function",
+    "fraudulent"
+  ],
+  "free_text_columns": [
+    "description"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.5222439,
+    "univariate_accuracy": 0.6710846,
+    "bivariate_accuracy": 0.5048041,
+    "trivariate_accuracy": 0.391286,
+    "discriminator_auc": 0.999,
+    "identical_matches": 0.0,
+    "dcr_training": 0.082,
+    "dcr_holdout": 0.081,
+    "dcr_share": 0.602,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.5222439,
+        "univariate_accuracy": 0.6706415,
+        "bivariate_accuracy": 0.5048041,
+        "trivariate_accuracy": 0.391286,
+        "discriminator_auc": 0.999,
+        "identical_matches": 0.001,
+        "dcr_training": 0.073,
+        "dcr_holdout": 0.074,
+        "dcr_share": 0.714
+      },
+      {
+        "overall_accuracy": 0.5220398,
+        "univariate_accuracy": 0.6711231,
+        "bivariate_accuracy": 0.5045168,
+        "trivariate_accuracy": 0.3904795,
+        "discriminator_auc": 0.999,
+        "identical_matches": 0.0,
+        "dcr_training": 0.354,
+        "dcr_holdout": 0.357,
+        "dcr_share": 0.602
+      },
+      {
+        "overall_accuracy": 0.5225324,
+        "univariate_accuracy": 0.6710846,
+        "bivariate_accuracy": 0.5051326,
+        "trivariate_accuracy": 0.39138,
+        "discriminator_auc": 0.999,
+        "identical_matches": 0.0,
+        "dcr_training": 0.082,
+        "dcr_holdout": 0.081,
+        "dcr_share": 0.484
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "description": {
+      "text_column": "description",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 14303,
+      "n_real_holdout": 3575,
+      "n_synthetic": 17877,
+      "frechet_distance": 0.17343741858479772,
+      "mmd_rbf": 0.009026762119652365,
+      "frechet_real_train_vs_synthetic": 0.17343741858479772,
+      "mmd_rbf_real_train_vs_synthetic": 0.009026762119652365,
+      "frechet_real_train_vs_real_holdout": 0.025817022061018338,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00023277445659919405,
+      "frechet_ratio_to_holdout": 6.717948265872016,
+      "mmd_ratio_to_holdout": 38.77900630306366
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.32180769890844346,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.38764078445242817
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.25597461336445876
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 14304,
+    "n_real_holdout": 3576,
+    "n_synthetic": 17880,
+    "structured_columns": [
+      "title",
+      "location",
+      "department",
+      "salary_range",
+      "telecommuting",
+      "has_company_logo",
+      "has_questions",
+      "employment_type",
+      "required_experience",
+      "required_education",
+      "industry",
+      "function",
+      "fraudulent"
+    ],
+    "text_columns": [
+      "description"
+    ],
+    "structured_block": {
+      "width": 13,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "description": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 781,
+    "auc_real_vs_holdout": 0.5293441173820999,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.628386358972819,
+    "accuracy_synth_vs_holdout": 0.8340790454884415,
+    "auc_drop_real_to_synth": 0.09904224159071917,
+    "accuracy_drop_real_to_synth": 0.03407904548844143
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "fraudulent",
+    "n_synthetic_train": 7876,
+    "n_holdout_test": 3576,
+    "structured_columns": [
+      "title",
+      "location",
+      "department",
+      "salary_range",
+      "telecommuting",
+      "has_company_logo",
+      "has_questions",
+      "employment_type",
+      "required_experience",
+      "required_education",
+      "industry",
+      "function"
+    ],
+    "text_columns": [
+      "description"
+    ],
+    "structured_block": {
+      "width": 12,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "description": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 780,
+    "accuracy": 0.9381991051454138,
+    "balanced_accuracy": 0.49410898379970547,
+    "f1_weighted": 0.9191129597370308,
+    "roc_auc": 0.4626400540281044
+  }
+}

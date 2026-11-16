@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Kickstarter",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 43663,
+      "completion_tokens": 42093,
+      "thinking_tokens": 0,
+      "total_tokens": 85756,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.9140625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 234,
+      "incorrect": 22,
+      "predicted_real": 106,
+      "predicted_synthetic": 150,
+      "true_real_predicted_real": 106,
+      "true_real_predicted_synthetic": 22,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "dataset_name": "fake_job_postings",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-4-argon",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 145248,
+      "completion_tokens": 2307,
+      "thinking_tokens": 175534,
+      "total_tokens": 323089,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-4-argon",
+      "provider": "gemini",
+      "accuracy": 0.99609375,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 255,
+      "incorrect": 1,
+      "predicted_real": 127,
+      "predicted_synthetic": 129,
+      "true_real_predicted_real": 127,
+      "true_real_predicted_synthetic": 1,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

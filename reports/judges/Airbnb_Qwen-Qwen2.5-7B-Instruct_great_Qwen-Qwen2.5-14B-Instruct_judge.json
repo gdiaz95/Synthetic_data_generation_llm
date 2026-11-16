@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Airbnb",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 108300,
+      "completion_tokens": 1706,
+      "thinking_tokens": 0,
+      "total_tokens": 110006,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.7265625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 186,
+      "incorrect": 70,
+      "predicted_real": 86,
+      "predicted_synthetic": 170,
+      "true_real_predicted_real": 72,
+      "true_real_predicted_synthetic": 56,
+      "true_synthetic_predicted_real": 14,
+      "true_synthetic_predicted_synthetic": 114,
+      "failed_to_parse": 0
+    }
+  }
+}

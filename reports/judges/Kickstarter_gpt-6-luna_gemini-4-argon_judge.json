@@ -1,0 +1,57 @@
+{
+  "dataset_name": "Kickstarter",
+  "generator_model": "gpt-6-luna",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "gemini-4-argon",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 77141,
+      "completion_tokens": 4615,
+      "thinking_tokens": 250358,
+      "total_tokens": 332114,
+      "requests": 512
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "name": {
+        "task": "free_text_column",
+        "target": "name",
+        "model": "gemini-4-argon",
+        "provider": "gemini",
+        "accuracy": 0.8515625,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 218,
+        "incorrect": 38,
+        "predicted_real": 106,
+        "predicted_synthetic": 150,
+        "true_real_predicted_real": 98,
+        "true_real_predicted_synthetic": 30,
+        "true_synthetic_predicted_real": 8,
+        "true_synthetic_predicted_synthetic": 120,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-4-argon",
+      "provider": "gemini",
+      "accuracy": 0.953125,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 244,
+      "incorrect": 12,
+      "predicted_real": 122,
+      "predicted_synthetic": 134,
+      "true_real_predicted_real": 119,
+      "true_real_predicted_synthetic": 9,
+      "true_synthetic_predicted_real": 3,
+      "true_synthetic_predicted_synthetic": 125,
+      "failed_to_parse": 0
+    }
+  }
+}

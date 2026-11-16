@@ -1,0 +1,37 @@
+{
+  "dataset_name": "student_satisfaction",
+  "generator_model": "gemini-3.1-flash-lite",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 47540,
+      "completion_tokens": 44862,
+      "thinking_tokens": 0,
+      "total_tokens": 92402,
+      "requests": 244
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.9508196721311475,
+      "n_examples": 244,
+      "n_real": 116,
+      "n_synthetic": 128,
+      "correct": 232,
+      "incorrect": 12,
+      "predicted_real": 108,
+      "predicted_synthetic": 136,
+      "true_real_predicted_real": 106,
+      "true_real_predicted_synthetic": 10,
+      "true_synthetic_predicted_real": 2,
+      "true_synthetic_predicted_synthetic": 126,
+      "failed_to_parse": 0
+    }
+  }
+}

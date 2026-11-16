@@ -1,0 +1,37 @@
+{
+  "dataset_name": "netflix_titles",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 77069,
+      "completion_tokens": 1683,
+      "thinking_tokens": 0,
+      "total_tokens": 78752,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.92578125,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 237,
+      "incorrect": 19,
+      "predicted_real": 109,
+      "predicted_synthetic": 147,
+      "true_real_predicted_real": 109,
+      "true_real_predicted_synthetic": 19,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

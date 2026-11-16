@@ -13,12 +13,17 @@ are excluded and the number of pairs favoring one side is tested against p=0.5.
         (dataset, judge) over all nine datasets. Lower is better.
   (iv)  Structured fidelity: overall structured fidelity of NIFTSy Gfl (k=5) vs
         Qseven, paired per dataset over all nine datasets. Higher is better.
+  (v)   Retrieval ablation, free-text quality: for each metric (Frechet ratio, MMD
+        ratio, BERTScore F1, MAUVE), NIFTSy Gfl at k=5 vs k=0, paired per free-text
+        column over the six free-text datasets. Lower is better for the ratios,
+        higher for BERTScore and MAUVE.
 
 Quality control (reported, not excluded): an evaluation is degenerate when at
 least 95% of its predictions fall in one class, and has parsing failures when
 more than 5% of responses could not be interpreted.
 
-Inputs:  reports/judges/*_judge.json, reports/*_structured_metrics.json
+Inputs:  reports/judges/*_judge.json, reports/*_structured_metrics.json,
+         reports/llm_metrics/*_llm_text_metrics.json
 Output:  reports/significance_tests.json
 Exits with code 3 if any expected input is missing or contains an error entry, so
 an incomplete run can never be reported as a pass.
@@ -203,6 +208,48 @@ def paired_fidelity() -> dict:
     return {**_sign_test(pairs, "niftsy", "qseven", lower_is_better=False), "n_pairs": len(pairs), "pairs": pairs}
 
 
+def _text_quality(dataset: str, generator: str) -> dict[str, dict[str, float]] | None:
+    """Per free-text column: Frechet and MMD ratios (synthetic vs real-train, divided by
+    real-holdout vs real-train), BERTScore F1, and MAUVE."""
+    structured = REPORTS_DIR / f"{dataset}_{_safe(generator)}_structured_metrics.json"
+    text = REPORTS_DIR / "llm_metrics" / f"{dataset}_{_safe(generator)}_llm_text_metrics.json"
+    for path in (structured, text):
+        if not path.exists():
+            missing_inputs.append(f"missing file: {path}")
+            return None
+    dist = json.loads(structured.read_text()).get("free_text_distribution") or {}
+    llm = json.loads(text.read_text())
+    out = {}
+    for column in _text_columns(dataset):
+        try:
+            d = dist[column]
+            out[column] = {
+                "frechet": d["frechet_real_train_vs_synthetic"] / d["frechet_real_train_vs_real_holdout"],
+                "mmd": d["mmd_rbf_real_train_vs_synthetic"] / d["mmd_rbf_real_train_vs_real_holdout"],
+                "bertscore": llm["bertscore"][column]["bertscore_f1_mean"],
+                "mauve": llm["mauve"][column]["mauve_score"],
+            }
+        except (KeyError, TypeError, ZeroDivisionError):
+            missing_inputs.append(f"missing free-text metrics: {dataset} | {generator} | {column}")
+    return out
+
+
+def retrieval_text_quality() -> dict:
+    """(v) Pair each free-text metric of NIFTSy Gfl at k=5 and k=0 per free-text column."""
+    columns = []
+    for dataset in FREE_TEXT_DATASETS:
+        k5, k0 = _text_quality(dataset, NIFTSY_GFL), _text_quality(dataset, NIFTSY_GFL_K0)
+        if k5 is None or k0 is None:
+            continue
+        columns += [(dataset, c, k5[c], k0[c]) for c in k5 if c in k0]
+    out = {}
+    for metric, lower_is_better in (("frechet", True), ("mmd", True), ("bertscore", False), ("mauve", False)):
+        pairs = [{"dataset": d, "column": c, "k5": a[metric], "k0": b[metric]} for d, c, a, b in columns]
+        out[metric] = {**_sign_test(pairs, "k5", "k0", lower_is_better=lower_is_better),
+                       "n_pairs": len(pairs), "pairs": pairs}
+    return out
+
+
 def main() -> int:
     output = {
         "metadata": {"generated_at": datetime.now(timezone.utc).isoformat()},
@@ -210,6 +257,7 @@ def main() -> int:
         "retrieval_ablation": paired_whole_row(FREE_TEXT_DATASETS, NIFTSY_GFL, NIFTSY_GFL_K0, "k5", "k0"),
         "qseven_whole_row": paired_whole_row(ALL_DATASETS, NIFTSY_GFL, QSEVEN, "niftsy", "qseven"),
         "qseven_structured_fidelity": paired_fidelity(),
+        "retrieval_text_quality": retrieval_text_quality(),
     }
     output["quality_control"] = {
         "degenerate": [q for q in qc_seen.values() if q["majority_class_share"] >= DEGENERATE_SHARE],
@@ -227,6 +275,9 @@ def main() -> int:
     for key in ("retrieval_ablation", "qseven_whole_row", "qseven_structured_fidelity"):
         r = output[key]
         print(f"      {key}: {r['n_pairs']} pairs, {r['ties']} ties, p={r['p_two_sided']}")
+    for metric, r in output["retrieval_text_quality"].items():
+        print(f"(v)   retrieval {metric}: k5 better {r['k5_better']}, k0 better {r['k0_better']}, "
+              f"{r['ties']} ties, p={r['p_two_sided']}")
     if unique_missing:
         print(f"\nINCOMPLETE: {len(unique_missing)} expected inputs missing or errored:")
         for m in unique_missing:

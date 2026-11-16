@@ -1,0 +1,37 @@
+{
+  "dataset_name": "fake_job_postings",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 131507,
+      "completion_tokens": 37373,
+      "thinking_tokens": 0,
+      "total_tokens": 168880,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.9765625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 250,
+      "incorrect": 6,
+      "predicted_real": 122,
+      "predicted_synthetic": 134,
+      "true_real_predicted_real": 122,
+      "true_real_predicted_synthetic": 6,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

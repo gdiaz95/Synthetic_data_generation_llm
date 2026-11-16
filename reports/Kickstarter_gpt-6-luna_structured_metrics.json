@@ -1,0 +1,171 @@
+{
+  "dataset_name": "Kickstarter",
+  "model": "gpt-6-luna",
+  "real_data_path": "data/raw/Kickstarter.csv",
+  "synthetic_data_path": "data/processed/Kickstarter_gpt-6-luna.csv",
+  "structured_columns": [
+    "category",
+    "currency",
+    "goal",
+    "pledged",
+    "state",
+    "backers",
+    "country",
+    "launch_year",
+    "launch_month",
+    "launch_day"
+  ],
+  "free_text_columns": [
+    "name"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.9177343,
+    "univariate_accuracy": 0.9886,
+    "bivariate_accuracy": 0.92665,
+    "trivariate_accuracy": 0.8379529,
+    "discriminator_auc": 0.858,
+    "identical_matches": 0.0,
+    "dcr_training": 0.063,
+    "dcr_holdout": 0.063,
+    "dcr_share": 0.504,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.9177343,
+        "univariate_accuracy": 0.9886,
+        "bivariate_accuracy": 0.92665,
+        "trivariate_accuracy": 0.8379529,
+        "discriminator_auc": 0.86,
+        "identical_matches": 0.0,
+        "dcr_training": 0.086,
+        "dcr_holdout": 0.087,
+        "dcr_share": 0.502
+      },
+      {
+        "overall_accuracy": 0.9177343,
+        "univariate_accuracy": 0.9886,
+        "bivariate_accuracy": 0.92665,
+        "trivariate_accuracy": 0.8379529,
+        "discriminator_auc": 0.858,
+        "identical_matches": 0.0,
+        "dcr_training": 0.057,
+        "dcr_holdout": 0.057,
+        "dcr_share": 0.504
+      },
+      {
+        "overall_accuracy": 0.9177343,
+        "univariate_accuracy": 0.9886,
+        "bivariate_accuracy": 0.92665,
+        "trivariate_accuracy": 0.8379529,
+        "discriminator_auc": 0.85,
+        "identical_matches": 0.0,
+        "dcr_training": 0.063,
+        "dcr_holdout": 0.063,
+        "dcr_share": 0.509
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "name": {
+      "text_column": "name",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 16000,
+      "n_real_holdout": 4000,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.30543547366731216,
+      "mmd_rbf": 0.044702092176508224,
+      "frechet_real_train_vs_synthetic": 0.30543547366731216,
+      "mmd_rbf_real_train_vs_synthetic": 0.044702092176508224,
+      "frechet_real_train_vs_real_holdout": 0.018168040904738225,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00017286860105081292,
+      "frechet_ratio_to_holdout": 16.811690113910664,
+      "mmd_ratio_to_holdout": 258.59000364889
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.9140996736560103,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.9869166666666668
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.8412826806453537
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 16000,
+    "n_real_holdout": 4000,
+    "n_synthetic": 20000,
+    "structured_columns": [
+      "category",
+      "currency",
+      "goal",
+      "pledged",
+      "state",
+      "backers",
+      "country",
+      "launch_year",
+      "launch_month",
+      "launch_day"
+    ],
+    "text_columns": [
+      "name"
+    ],
+    "structured_block": {
+      "width": 10,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "name": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 778,
+    "auc_real_vs_holdout": 0.5050447499999999,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.5818419999999999,
+    "accuracy_synth_vs_holdout": 0.8333333333333334,
+    "auc_drop_real_to_synth": 0.07679724999999993,
+    "accuracy_drop_real_to_synth": 0.033333333333333326
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "state",
+    "n_synthetic_train": 20000,
+    "n_holdout_test": 4000,
+    "structured_columns": [
+      "category",
+      "currency",
+      "goal",
+      "pledged",
+      "backers",
+      "country",
+      "launch_year",
+      "launch_month",
+      "launch_day"
+    ],
+    "text_columns": [
+      "name"
+    ],
+    "structured_block": {
+      "width": 9,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "name": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 777,
+    "accuracy": 0.83525,
+    "balanced_accuracy": 0.31941704838696805,
+    "f1_weighted": 0.7794404430013351
+  }
+}

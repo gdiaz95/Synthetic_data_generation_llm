@@ -2,12 +2,13 @@
 Timing + token-usage benchmark: free-text datasets x generator backbones, at a
 matched row count, for a fair per-generator speed/cost comparison.
 
-Three tracks, run as separate invocations of this script:
-  - gfl:  gemini-3.1-flash-lite, sequential across datasets
-  - gpt:  gpt-6-luna, sequential across datasets (kept sequential deliberately --
-    running gpt-4o-mini combos in parallel against each other hit OpenAI's
-    per-account rate limit hard; confirmed empirically before this script existed.
-    Kept sequential for gpt-6-luna too as a precaution, not yet re-confirmed.)
+Four tracks, run as separate invocations of this script:
+  - gfl:  gemini-3.1-flash-lite, 64 parallel requests (project default),
+    sequential across datasets
+  - gfl8: gemini-3.1-flash-lite, 8 parallel requests, for a matched comparison
+    with the gpt track
+  - gpt:  gpt-6-luna, 8 parallel requests (higher concurrency hits OpenAI's
+    per-account rate limit), sequential across datasets
   - qwen: Qwen/Qwen2.5-14B-Instruct (local), sequential across datasets on a
     single GPU (QWEN_GPU_INDEX, default 0), as described in the paper
 
@@ -19,6 +20,7 @@ the wrong one depending on sort order (this bit us once during development).
 
 Usage:
     python -m source.metrics.run_timing_benchmark gfl
+    python -m source.metrics.run_timing_benchmark gfl8
     python -m source.metrics.run_timing_benchmark gpt
     python -m source.metrics.run_timing_benchmark qwen
 """
@@ -36,7 +38,7 @@ PYTHON = sys.executable
 BENCH_INPUT_DIR = REPO_ROOT / "data" / "processed" / "timing_bench_inputs"
 BENCH_OUTPUT_DIR = REPO_ROOT / "data" / "processed" / "timing_bench_outputs"
 RESULTS_PATH = REPO_ROOT / "reports" / "timing_benchmark_results.json"
-GPT_LLM_CONFIG = REPO_ROOT / "configs" / "llm_generation_gpt4omini_bench.yml"
+PARALLEL8_LLM_CONFIG = REPO_ROOT / "configs" / "llm_generation_parallel8.yml"
 
 DATASETS = ["adult_with_three", "Airbnb", "consumer_complaint", "fake_job_postings", "Kickstarter", "netflix_titles"]
 N_ROWS = 500
@@ -144,16 +146,17 @@ def track_qwen_single_gpu() -> None:
     print("=== track Qwen-14B ALL DONE ===", flush=True)
 
 
-def _ensure_gpt_config() -> Path:
-    """gpt-6-luna needs a lower api_parallel_shards than the project default (64) --
-    empirically, 64-way concurrency against OpenAI's per-account rate limit causes
-    a storm of HTTP 429s and a very slow retry queue. 8 is safe."""
-    if GPT_LLM_CONFIG.exists():
-        return GPT_LLM_CONFIG
+def _parallel8_config() -> Path:
+    """Generation config with 8 parallel API requests instead of the project default (64).
+    gpt-6-luna needs it: 64-way concurrency against OpenAI's per-account rate limit causes
+    a storm of HTTP 429s and a very slow retry queue. The gfl8 track uses the same config
+    so that Gfl and GPT are compared at the same concurrency."""
+    if PARALLEL8_LLM_CONFIG.exists():
+        return PARALLEL8_LLM_CONFIG
     base = (REPO_ROOT / "configs" / "llm_generation.yml").read_text()
     patched = re.sub(r"^api_parallel_shards:\s*\d+", "api_parallel_shards: 8", base, flags=re.MULTILINE)
-    GPT_LLM_CONFIG.write_text(patched)
-    return GPT_LLM_CONFIG
+    PARALLEL8_LLM_CONFIG.write_text(patched)
+    return PARALLEL8_LLM_CONFIG
 
 
 if __name__ == "__main__":
@@ -161,10 +164,12 @@ if __name__ == "__main__":
     prepare_bench_inputs()
     if track == "gfl":
         track_sequential("Gfl", "gemini-3.1-flash-lite", "gemini")
+    elif track == "gfl8":
+        track_sequential("Gfl-8", "gemini-3.1-flash-lite", "gemini", llm_config=_parallel8_config())
     elif track == "gpt":
-        track_sequential("gpt-6-luna", "gpt-6-luna", "openai", llm_config=_ensure_gpt_config())
+        track_sequential("gpt-6-luna", "gpt-6-luna", "openai", llm_config=_parallel8_config())
     elif track == "qwen":
         track_qwen_single_gpu()
     else:
-        print("usage: python -m source.metrics.run_timing_benchmark [gfl|gpt|qwen]")
+        print("usage: python -m source.metrics.run_timing_benchmark [gfl|gfl8|gpt|qwen]")
         sys.exit(1)

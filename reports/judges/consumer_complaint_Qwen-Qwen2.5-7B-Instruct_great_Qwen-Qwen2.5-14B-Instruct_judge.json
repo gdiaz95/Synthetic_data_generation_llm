@@ -1,0 +1,37 @@
+{
+  "dataset_name": "consumer_complaint",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 89071,
+      "completion_tokens": 1662,
+      "thinking_tokens": 0,
+      "total_tokens": 90733,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.9921875,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 254,
+      "incorrect": 2,
+      "predicted_real": 130,
+      "predicted_synthetic": 126,
+      "true_real_predicted_real": 128,
+      "true_real_predicted_synthetic": 0,
+      "true_synthetic_predicted_real": 2,
+      "true_synthetic_predicted_synthetic": 126,
+      "failed_to_parse": 0
+    }
+  }
+}

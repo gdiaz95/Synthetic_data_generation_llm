@@ -1,0 +1,57 @@
+{
+  "dataset_name": "consumer_complaint",
+  "generator_model": "Qwen/Qwen2.5-14B-Instruct",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 139269,
+      "completion_tokens": 64794,
+      "thinking_tokens": 0,
+      "total_tokens": 204063,
+      "requests": 512
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "consumer_complaint_narrative": {
+        "task": "free_text_column",
+        "target": "consumer_complaint_narrative",
+        "model": "gpt-6-luna",
+        "provider": "openai",
+        "accuracy": 0.9375,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 240,
+        "incorrect": 16,
+        "predicted_real": 122,
+        "predicted_synthetic": 134,
+        "true_real_predicted_real": 117,
+        "true_real_predicted_synthetic": 11,
+        "true_synthetic_predicted_real": 5,
+        "true_synthetic_predicted_synthetic": 123,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.97265625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 249,
+      "incorrect": 7,
+      "predicted_real": 133,
+      "predicted_synthetic": 123,
+      "true_real_predicted_real": 127,
+      "true_real_predicted_synthetic": 1,
+      "true_synthetic_predicted_real": 6,
+      "true_synthetic_predicted_synthetic": 122,
+      "failed_to_parse": 0
+    }
+  }
+}

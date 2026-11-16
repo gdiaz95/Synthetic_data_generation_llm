@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Airbnb",
+  "free_text_columns": [
+    "name",
+    "amenities"
+  ],
+  "max_words_generation": 100,
+  "target_column": "host_is_superhost",
+  "shape": [
+    279712,
+    24
+  ],
+  "pii_columns": []
+}

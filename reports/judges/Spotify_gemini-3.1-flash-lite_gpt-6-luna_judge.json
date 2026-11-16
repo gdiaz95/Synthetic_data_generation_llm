@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Spotify",
+  "generator_model": "gemini-3.1-flash-lite",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 65394,
+      "completion_tokens": 57362,
+      "thinking_tokens": 0,
+      "total_tokens": 122756,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.9140625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 234,
+      "incorrect": 22,
+      "predicted_real": 110,
+      "predicted_synthetic": 146,
+      "true_real_predicted_real": 108,
+      "true_real_predicted_synthetic": 20,
+      "true_synthetic_predicted_real": 2,
+      "true_synthetic_predicted_synthetic": 126,
+      "failed_to_parse": 0
+    }
+  }
+}

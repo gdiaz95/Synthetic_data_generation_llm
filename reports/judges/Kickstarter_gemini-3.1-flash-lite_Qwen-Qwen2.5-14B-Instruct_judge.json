@@ -1,0 +1,57 @@
+{
+  "dataset_name": "Kickstarter",
+  "generator_model": "gemini-3.1-flash-lite",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 80581,
+      "completion_tokens": 3350,
+      "thinking_tokens": 0,
+      "total_tokens": 83931,
+      "requests": 512
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "name": {
+        "task": "free_text_column",
+        "target": "name",
+        "model": "Qwen/Qwen2.5-14B-Instruct",
+        "provider": "local",
+        "accuracy": 0.5078125,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 130,
+        "incorrect": 126,
+        "predicted_real": 10,
+        "predicted_synthetic": 246,
+        "true_real_predicted_real": 6,
+        "true_real_predicted_synthetic": 122,
+        "true_synthetic_predicted_real": 4,
+        "true_synthetic_predicted_synthetic": 124,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.5859375,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 150,
+      "incorrect": 106,
+      "predicted_real": 224,
+      "predicted_synthetic": 32,
+      "true_real_predicted_real": 123,
+      "true_real_predicted_synthetic": 5,
+      "true_synthetic_predicted_real": 101,
+      "true_synthetic_predicted_synthetic": 27,
+      "failed_to_parse": 0
+    }
+  }
+}

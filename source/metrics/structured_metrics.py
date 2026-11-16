@@ -31,6 +31,10 @@ class QAMetricsSummary:
     trivariate_accuracy: float
     discriminator_auc: float
     identical_matches: float
+    # References for identical_matches (share of synthetic rows identical to a training row):
+    # synthetic rows identical to a holdout row, and training rows identical to a holdout row.
+    identical_matches_holdout: float
+    identical_matches_training_holdout: float
     dcr_training: float
     dcr_holdout: float
     dcr_share: float
@@ -84,6 +88,8 @@ def _to_summary(metrics: Any) -> QAMetricsSummary:
         trivariate_accuracy=_safe_float(metrics.accuracy.trivariate),
         discriminator_auc=_safe_float(metrics.similarity.discriminator_auc_training_synthetic),
         identical_matches=_safe_float(metrics.distances.ims_training),
+        identical_matches_holdout=_safe_float(metrics.distances.ims_holdout),
+        identical_matches_training_holdout=_safe_float(metrics.distances.ims_trn_hol),
         dcr_training=_safe_float(metrics.distances.dcr_training),
         dcr_holdout=_safe_float(metrics.distances.dcr_holdout),
         dcr_share=_safe_float(metrics.distances.dcr_share),

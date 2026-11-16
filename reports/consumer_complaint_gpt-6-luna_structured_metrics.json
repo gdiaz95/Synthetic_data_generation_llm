@@ -1,0 +1,149 @@
+{
+  "dataset_name": "consumer_complaint",
+  "model": "gpt-6-luna",
+  "real_data_path": "data/raw/consumer_complaint.csv",
+  "synthetic_data_path": "data/processed/consumer_complaint_gpt-6-luna.csv",
+  "structured_columns": [
+    "product",
+    "sub_product",
+    "issue",
+    "company",
+    "state",
+    "tags",
+    "consumer_consent_provided",
+    "submitted_via",
+    "company_response_to_consumer",
+    "timely_response",
+    "consumer_disputed",
+    "received_year",
+    "received_month",
+    "received_day"
+  ],
+  "free_text_columns": [
+    "consumer_complaint_narrative"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.88755,
+    "univariate_accuracy": 0.9852964,
+    "bivariate_accuracy": 0.8963451,
+    "trivariate_accuracy": 0.7810087,
+    "discriminator_auc": 0.989,
+    "identical_matches": 0.0,
+    "dcr_training": 0.2,
+    "dcr_holdout": 0.203,
+    "dcr_share": 0.517,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.88755,
+        "univariate_accuracy": 0.9852964,
+        "bivariate_accuracy": 0.8963451,
+        "trivariate_accuracy": 0.7810087,
+        "discriminator_auc": 0.99,
+        "identical_matches": 0.0,
+        "dcr_training": 0.205,
+        "dcr_holdout": 0.206,
+        "dcr_share": 0.517
+      },
+      {
+        "overall_accuracy": 0.88755,
+        "univariate_accuracy": 0.9852964,
+        "bivariate_accuracy": 0.8963451,
+        "trivariate_accuracy": 0.7810087,
+        "discriminator_auc": 0.989,
+        "identical_matches": 0.0,
+        "dcr_training": 0.083,
+        "dcr_holdout": 0.085,
+        "dcr_share": 0.514
+      },
+      {
+        "overall_accuracy": 0.88755,
+        "univariate_accuracy": 0.9852964,
+        "bivariate_accuracy": 0.8963451,
+        "trivariate_accuracy": 0.7810087,
+        "discriminator_auc": 0.989,
+        "identical_matches": 0.0,
+        "dcr_training": 0.2,
+        "dcr_holdout": 0.203,
+        "dcr_share": 0.541
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "consumer_complaint_narrative": {
+      "text_column": "consumer_complaint_narrative",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 4728,
+      "n_real_holdout": 1130,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.630534007879438,
+      "mmd_rbf": 0.1383214848219103,
+      "frechet_real_train_vs_synthetic": 0.630534007879438,
+      "mmd_rbf_real_train_vs_synthetic": 0.1383214848219103,
+      "frechet_real_train_vs_real_holdout": 0.027031009492197517,
+      "mmd_rbf_real_train_vs_real_holdout": 0.0006841583744641166,
+      "frechet_ratio_to_holdout": 23.32632112986536,
+      "mmd_ratio_to_holdout": 202.17758049114565
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.7802437864801588,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.9818428361182124
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.5786447368421053
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 16000,
+    "n_real_holdout": 4000,
+    "n_synthetic": 20000,
+    "structured_columns": [
+      "product",
+      "sub_product",
+      "issue",
+      "company",
+      "state",
+      "tags",
+      "consumer_consent_provided",
+      "submitted_via",
+      "company_response_to_consumer",
+      "timely_response",
+      "consumer_disputed",
+      "received_year",
+      "received_month",
+      "received_day"
+    ],
+    "text_columns": [
+      "consumer_complaint_narrative"
+    ],
+    "structured_block": {
+      "width": 14,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "consumer_complaint_narrative": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 782,
+    "auc_real_vs_holdout": 0.5022614999999999,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.5487485999999999,
+    "accuracy_synth_vs_holdout": 0.8333333333333334,
+    "auc_drop_real_to_synth": 0.0464871,
+    "accuracy_drop_real_to_synth": 0.033333333333333326
+  },
+  "tstr": {
+    "skipped": true,
+    "reason": "No valid target_column was configured."
+  }
+}

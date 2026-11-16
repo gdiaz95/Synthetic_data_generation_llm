@@ -1,0 +1,13 @@
+{
+  "dataset_name": "Kickstarter",
+  "free_text_columns": [
+    "name"
+  ],
+  "max_words_generation": 40,
+  "target_column": "state",
+  "shape": [
+    323118,
+    11
+  ],
+  "pii_columns": []
+}

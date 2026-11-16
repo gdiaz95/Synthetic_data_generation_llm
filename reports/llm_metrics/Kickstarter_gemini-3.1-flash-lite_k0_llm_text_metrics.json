@@ -1,0 +1,49 @@
+{
+  "dataset_name": "Kickstarter",
+  "model": "gemini-3.1-flash-lite_k0",
+  "real_data_path": "data/raw/Kickstarter.csv",
+  "synthetic_data_path": "data/processed/Kickstarter_gemini-3.1-flash-lite_k0.csv",
+  "free_text_columns": [
+    "name"
+  ],
+  "structured_columns": [
+    "category",
+    "currency",
+    "goal",
+    "pledged",
+    "state",
+    "backers",
+    "country",
+    "launch_year",
+    "launch_month",
+    "launch_day"
+  ],
+  "bertscore": {
+    "name": {
+      "bertscore_precision_mean": 0.654275119304657,
+      "bertscore_recall_mean": 0.6864722967147827,
+      "bertscore_f1_mean": 0.6697661876678467,
+      "bertscore_f1_std": 0.03002406284213066,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 20000,
+      "n_reference_pool": 4000
+    }
+  },
+  "mauve": {
+    "name": {
+      "mauve_score": 0.009264992470099135,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    }
+  },
+  "privacy_nndr": {
+    "nndr_synthetic_mean": 9.65667870920897,
+    "nndr_synthetic_median": 1.3086899602500592,
+    "nndr_synthetic_share_below_threshold": 0.1243,
+    "nndr_holdout_mean": 1.3760826897378338,
+    "nndr_holdout_median": 0.6240140373128078,
+    "nndr_holdout_share_below_threshold": 0.37625,
+    "nndr_threshold": 0.5,
+    "n_structured_columns_used": 10
+  }
+}

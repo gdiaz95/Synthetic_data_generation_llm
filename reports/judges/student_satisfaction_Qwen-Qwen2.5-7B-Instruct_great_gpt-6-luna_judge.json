@@ -1,0 +1,37 @@
+{
+  "dataset_name": "student_satisfaction",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 64730,
+      "completion_tokens": 33967,
+      "thinking_tokens": 0,
+      "total_tokens": 98697,
+      "requests": 244
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.9795081967213115,
+      "n_examples": 244,
+      "n_real": 116,
+      "n_synthetic": 128,
+      "correct": 239,
+      "incorrect": 5,
+      "predicted_real": 113,
+      "predicted_synthetic": 131,
+      "true_real_predicted_real": 112,
+      "true_real_predicted_synthetic": 4,
+      "true_synthetic_predicted_real": 1,
+      "true_synthetic_predicted_synthetic": 127,
+      "failed_to_parse": 0
+    }
+  }
+}

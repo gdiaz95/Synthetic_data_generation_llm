@@ -1,0 +1,37 @@
+{
+  "dataset_name": "student_satisfaction",
+  "generator_model": "gemini-3.1-flash-lite",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-3.1-flash-lite",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 48452,
+      "completion_tokens": 1422,
+      "thinking_tokens": 166397,
+      "total_tokens": 216271,
+      "requests": 244
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "accuracy": 0.9672131147540983,
+      "n_examples": 244,
+      "n_real": 116,
+      "n_synthetic": 128,
+      "correct": 236,
+      "incorrect": 8,
+      "predicted_real": 122,
+      "predicted_synthetic": 122,
+      "true_real_predicted_real": 115,
+      "true_real_predicted_synthetic": 1,
+      "true_synthetic_predicted_real": 7,
+      "true_synthetic_predicted_synthetic": 121,
+      "failed_to_parse": 0
+    }
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "dataset_name": "Kickstarter",
+  "model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "real_data_path": "data/raw/Kickstarter.csv",
+  "synthetic_data_path": "data/processed/Kickstarter_Qwen-Qwen2.5-7B-Instruct_great.csv",
+  "structured_columns": [
+    "category",
+    "currency",
+    "goal",
+    "pledged",
+    "state",
+    "backers",
+    "country",
+    "launch_year",
+    "launch_month",
+    "launch_day"
+  ],
+  "free_text_columns": [
+    "name"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.0813683,
+    "univariate_accuracy": 0.19456,
+    "bivariate_accuracy": 0.0411867,
+    "trivariate_accuracy": 0.0083583,
+    "discriminator_auc": 1.0,
+    "identical_matches": 0.0,
+    "dcr_training": 0.284,
+    "dcr_holdout": 0.317,
+    "dcr_share": 0.797,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.0812467,
+        "univariate_accuracy": 0.19434,
+        "bivariate_accuracy": 0.0410856,
+        "trivariate_accuracy": 0.0083146,
+        "discriminator_auc": 1.0,
+        "identical_matches": 0.0,
+        "dcr_training": 0.938,
+        "dcr_holdout": 0.969,
+        "dcr_share": 0.772
+      },
+      {
+        "overall_accuracy": 0.0815545,
+        "univariate_accuracy": 0.19487,
+        "bivariate_accuracy": 0.0413622,
+        "trivariate_accuracy": 0.0084312,
+        "discriminator_auc": 1.0,
+        "identical_matches": 0.0,
+        "dcr_training": 0.284,
+        "dcr_holdout": 0.317,
+        "dcr_share": 0.839
+      },
+      {
+        "overall_accuracy": 0.0813683,
+        "univariate_accuracy": 0.19456,
+        "bivariate_accuracy": 0.0411867,
+        "trivariate_accuracy": 0.0083583,
+        "discriminator_auc": 1.0,
+        "identical_matches": 0.0,
+        "dcr_training": 0.172,
+        "dcr_holdout": 0.193,
+        "dcr_share": 0.797
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "name": {
+      "text_column": "name",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 16000,
+      "n_real_holdout": 4000,
+      "n_synthetic": 18694,
+      "frechet_distance": 0.9045744761179713,
+      "mmd_rbf": 0.11771774551684222,
+      "frechet_real_train_vs_synthetic": 0.9045744761179713,
+      "mmd_rbf_real_train_vs_synthetic": 0.11771774551684222,
+      "frechet_real_train_vs_real_holdout": 0.019714290643475893,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00017125998807487886,
+      "frechet_ratio_to_holdout": 45.8842010842183,
+      "mmd_ratio_to_holdout": 687.3628034201034
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.13189418420770507,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.25373836841541003
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.010050000000000114
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 16000,
+    "n_real_holdout": 4000,
+    "n_synthetic": 20000,
+    "structured_columns": [
+      "category",
+      "currency",
+      "goal",
+      "pledged",
+      "state",
+      "backers",
+      "country",
+      "launch_year",
+      "launch_month",
+      "launch_day"
+    ],
+    "text_columns": [
+      "name"
+    ],
+    "structured_block": {
+      "width": 10,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "name": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 778,
+    "auc_real_vs_holdout": 0.5050447499999999,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.6645859999999999,
+    "accuracy_synth_vs_holdout": 0.8371666666666666,
+    "auc_drop_real_to_synth": 0.15954124999999997,
+    "accuracy_drop_real_to_synth": 0.03716666666666657
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "state",
+    "n_synthetic_train": 4106,
+    "n_holdout_test": 4000,
+    "structured_columns": [
+      "category",
+      "currency",
+      "goal",
+      "pledged",
+      "backers",
+      "country",
+      "launch_year",
+      "launch_month",
+      "launch_day"
+    ],
+    "text_columns": [
+      "name"
+    ],
+    "structured_block": {
+      "width": 9,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "name": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 777,
+    "accuracy": 0.2835,
+    "balanced_accuracy": 0.11080750235760035,
+    "f1_weighted": 0.2845351063795296
+  }
+}

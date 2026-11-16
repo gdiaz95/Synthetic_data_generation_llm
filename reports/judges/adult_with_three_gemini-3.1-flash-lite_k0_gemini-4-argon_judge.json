@@ -1,0 +1,37 @@
+{
+  "dataset_name": "adult_with_three",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-4-argon",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 99850,
+      "completion_tokens": 1840,
+      "thinking_tokens": 287302,
+      "total_tokens": 388992,
+      "requests": 213
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-4-argon",
+      "provider": "gemini",
+      "accuracy": 0.71484375,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 183,
+      "incorrect": 73,
+      "predicted_real": 84,
+      "predicted_synthetic": 108,
+      "true_real_predicted_real": 84,
+      "true_real_predicted_synthetic": 9,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 99,
+      "failed_to_parse": 64
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "dataset_name": "fake_job_postings",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 99239,
+      "completion_tokens": 50962,
+      "thinking_tokens": 0,
+      "total_tokens": 150201,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.734375,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 188,
+      "incorrect": 68,
+      "predicted_real": 182,
+      "predicted_synthetic": 74,
+      "true_real_predicted_real": 121,
+      "true_real_predicted_synthetic": 7,
+      "true_synthetic_predicted_real": 61,
+      "true_synthetic_predicted_synthetic": 67,
+      "failed_to_parse": 0
+    }
+  }
+}

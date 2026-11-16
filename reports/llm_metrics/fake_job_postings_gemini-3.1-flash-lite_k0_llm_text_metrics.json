@@ -1,0 +1,52 @@
+{
+  "dataset_name": "fake_job_postings",
+  "model": "gemini-3.1-flash-lite_k0",
+  "real_data_path": "data/raw/fake_job_postings.csv",
+  "synthetic_data_path": "data/processed/fake_job_postings_gemini-3.1-flash-lite_k0.csv",
+  "free_text_columns": [
+    "description"
+  ],
+  "structured_columns": [
+    "title",
+    "location",
+    "department",
+    "salary_range",
+    "telecommuting",
+    "has_company_logo",
+    "has_questions",
+    "employment_type",
+    "required_experience",
+    "required_education",
+    "industry",
+    "function",
+    "fraudulent"
+  ],
+  "bertscore": {
+    "description": {
+      "bertscore_precision_mean": 0.7189012169837952,
+      "bertscore_recall_mean": 0.7425978779792786,
+      "bertscore_f1_mean": 0.7301006317138672,
+      "bertscore_f1_std": 0.03414648771286011,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 17880,
+      "n_reference_pool": 3576
+    }
+  },
+  "mauve": {
+    "description": {
+      "mauve_score": 0.007101470784172838,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    }
+  },
+  "privacy_nndr": {
+    "nndr_synthetic_mean": 1.4515939363344208,
+    "nndr_synthetic_median": 1.2141379535952113,
+    "nndr_synthetic_share_below_threshold": 0.032102908277404925,
+    "nndr_holdout_mean": 4.908123189426752,
+    "nndr_holdout_median": 0.7522643991574193,
+    "nndr_holdout_share_below_threshold": 0.27293064876957496,
+    "nndr_threshold": 0.5,
+    "n_structured_columns_used": 13
+  }
+}

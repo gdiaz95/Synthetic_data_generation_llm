@@ -1,0 +1,133 @@
+{
+  "dataset_name": "Spotify",
+  "model": "gemini-3.1-flash-lite",
+  "real_data_path": "data/raw/Spotify.csv",
+  "synthetic_data_path": "data/processed/Spotify_gemini-3.1-flash-lite.csv",
+  "structured_columns": [
+    "artists",
+    "album_name",
+    "track_name",
+    "popularity",
+    "duration_ms",
+    "explicit",
+    "danceability",
+    "energy",
+    "key",
+    "loudness",
+    "mode",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "tempo",
+    "time_signature",
+    "track_genre"
+  ],
+  "free_text_columns": [],
+  "metrics_qa": {
+    "overall_accuracy": 0.8852709,
+    "univariate_accuracy": 0.9569868,
+    "bivariate_accuracy": 0.8908243,
+    "trivariate_accuracy": 0.8080637,
+    "discriminator_auc": 0.997,
+    "identical_matches": 0.0,
+    "dcr_training": 0.22,
+    "dcr_holdout": 0.221,
+    "dcr_share": 0.513,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.8852709,
+        "univariate_accuracy": 0.9569868,
+        "bivariate_accuracy": 0.890762,
+        "trivariate_accuracy": 0.8080637,
+        "discriminator_auc": 0.998,
+        "identical_matches": 0.0,
+        "dcr_training": 0.48,
+        "dcr_holdout": 0.479,
+        "dcr_share": 0.498
+      },
+      {
+        "overall_accuracy": 0.8854068,
+        "univariate_accuracy": 0.9571105,
+        "bivariate_accuracy": 0.8909211,
+        "trivariate_accuracy": 0.8081888,
+        "discriminator_auc": 0.997,
+        "identical_matches": 0.0,
+        "dcr_training": 0.135,
+        "dcr_holdout": 0.138,
+        "dcr_share": 0.547
+      },
+      {
+        "overall_accuracy": 0.8852449,
+        "univariate_accuracy": 0.9568684,
+        "bivariate_accuracy": 0.8908243,
+        "trivariate_accuracy": 0.8080421,
+        "discriminator_auc": 0.997,
+        "identical_matches": 0.0,
+        "dcr_training": 0.22,
+        "dcr_holdout": 0.221,
+        "dcr_share": 0.513
+      }
+    ]
+  },
+  "free_text_distribution": null,
+  "quality_report": {
+    "overall_score": 0.5654696698210637,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.8590983284435012
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.27184101119862614
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 16000,
+    "n_real_holdout": 4000,
+    "n_synthetic": 20000,
+    "structured_columns": [
+      "artists",
+      "album_name",
+      "track_name",
+      "popularity",
+      "duration_ms",
+      "explicit",
+      "danceability",
+      "energy",
+      "key",
+      "loudness",
+      "mode",
+      "speechiness",
+      "acousticness",
+      "instrumentalness",
+      "liveness",
+      "valence",
+      "tempo",
+      "time_signature",
+      "track_genre"
+    ],
+    "text_columns": [],
+    "structured_block": {
+      "width": 19,
+      "weight": 1.0
+    },
+    "text_blocks": {},
+    "total_feature_width": 19,
+    "auc_real_vs_holdout": 0.501664375,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.7547132,
+    "accuracy_synth_vs_holdout": 0.9003333333333333,
+    "auc_drop_real_to_synth": 0.2530488249999999,
+    "accuracy_drop_real_to_synth": 0.10033333333333327
+  },
+  "tstr": {
+    "skipped": true,
+    "reason": "No valid target_column was configured."
+  }
+}

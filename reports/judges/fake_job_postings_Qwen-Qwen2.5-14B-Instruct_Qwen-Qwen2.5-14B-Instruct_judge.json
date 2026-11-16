@@ -1,0 +1,57 @@
+{
+  "dataset_name": "fake_job_postings",
+  "generator_model": "Qwen/Qwen2.5-14B-Instruct",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 189740,
+      "completion_tokens": 3227,
+      "thinking_tokens": 0,
+      "total_tokens": 192967,
+      "requests": 512
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "description": {
+        "task": "free_text_column",
+        "target": "description",
+        "model": "Qwen/Qwen2.5-14B-Instruct",
+        "provider": "local",
+        "accuracy": 0.38671875,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 99,
+        "incorrect": 157,
+        "predicted_real": 193,
+        "predicted_synthetic": 63,
+        "true_real_predicted_real": 82,
+        "true_real_predicted_synthetic": 46,
+        "true_synthetic_predicted_real": 111,
+        "true_synthetic_predicted_synthetic": 17,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.6484375,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 166,
+      "incorrect": 90,
+      "predicted_real": 164,
+      "predicted_synthetic": 92,
+      "true_real_predicted_real": 101,
+      "true_real_predicted_synthetic": 27,
+      "true_synthetic_predicted_real": 63,
+      "true_synthetic_predicted_synthetic": 65,
+      "failed_to_parse": 0
+    }
+  }
+}

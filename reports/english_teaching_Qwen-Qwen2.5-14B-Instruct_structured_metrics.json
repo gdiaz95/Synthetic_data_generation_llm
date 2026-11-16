@@ -1,0 +1,129 @@
+{
+  "dataset_name": "english_teaching",
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "real_data_path": "data/raw/english_teaching.csv",
+  "synthetic_data_path": "data/processed/english_teaching_Qwen-Qwen2.5-14B-Instruct.csv",
+  "structured_columns": [
+    "Feedback_Text",
+    "Teaching_Clarity",
+    "Engagement",
+    "Effectiveness",
+    "Responsiveness",
+    "Overall_Score",
+    "Label"
+  ],
+  "free_text_columns": [],
+  "metrics_qa": {
+    "overall_accuracy": 0.8703621,
+    "univariate_accuracy": 0.9735429,
+    "bivariate_accuracy": 0.8971281,
+    "trivariate_accuracy": 0.7404154,
+    "discriminator_auc": 0.696,
+    "identical_matches": 0.0,
+    "dcr_training": 0.301,
+    "dcr_holdout": 0.296,
+    "dcr_share": 0.466,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.8703621,
+        "univariate_accuracy": 0.9735429,
+        "bivariate_accuracy": 0.8971281,
+        "trivariate_accuracy": 0.7404154,
+        "discriminator_auc": 0.71,
+        "identical_matches": 0.0,
+        "dcr_training": 0.311,
+        "dcr_holdout": 0.304,
+        "dcr_share": 0.466
+      },
+      {
+        "overall_accuracy": 0.8703621,
+        "univariate_accuracy": 0.9735429,
+        "bivariate_accuracy": 0.8971281,
+        "trivariate_accuracy": 0.7404154,
+        "discriminator_auc": 0.669,
+        "identical_matches": 0.0,
+        "dcr_training": 0.299,
+        "dcr_holdout": 0.295,
+        "dcr_share": 0.486
+      },
+      {
+        "overall_accuracy": 0.8703621,
+        "univariate_accuracy": 0.9735429,
+        "bivariate_accuracy": 0.8971281,
+        "trivariate_accuracy": 0.7404154,
+        "discriminator_auc": 0.696,
+        "identical_matches": 0.0,
+        "dcr_training": 0.301,
+        "dcr_holdout": 0.296,
+        "dcr_share": 0.459
+      }
+    ]
+  },
+  "free_text_distribution": null,
+  "quality_report": {
+    "overall_score": 0.9458229926543757,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.9785315243415802
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.9131144609671713
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 2864,
+    "n_real_holdout": 716,
+    "n_synthetic": 3580,
+    "structured_columns": [
+      "Feedback_Text",
+      "Teaching_Clarity",
+      "Engagement",
+      "Effectiveness",
+      "Responsiveness",
+      "Overall_Score",
+      "Label"
+    ],
+    "text_columns": [],
+    "structured_block": {
+      "width": 7,
+      "weight": 1.0
+    },
+    "text_blocks": {},
+    "total_feature_width": 7,
+    "auc_real_vs_holdout": 0.5030351736837178,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.5095284167160825,
+    "accuracy_synth_vs_holdout": 0.8333333333333334,
+    "auc_drop_real_to_synth": 0.006493243032364759,
+    "accuracy_drop_real_to_synth": 0.033333333333333326
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "Label",
+    "n_synthetic_train": 3580,
+    "n_holdout_test": 716,
+    "structured_columns": [
+      "Feedback_Text",
+      "Teaching_Clarity",
+      "Engagement",
+      "Effectiveness",
+      "Responsiveness",
+      "Overall_Score"
+    ],
+    "text_columns": [],
+    "structured_block": {
+      "width": 6,
+      "weight": 1.0
+    },
+    "text_blocks": {},
+    "total_feature_width": 6,
+    "accuracy": 0.7122905027932961,
+    "balanced_accuracy": 0.25935828877005346,
+    "f1_weighted": 0.6050853728164999
+  }
+}

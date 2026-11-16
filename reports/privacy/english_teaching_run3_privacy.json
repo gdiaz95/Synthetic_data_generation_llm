@@ -1,0 +1,90 @@
+{
+  "dataset": "english_teaching",
+  "run": 3,
+  "n_train": 2864,
+  "n_holdout": 716,
+  "n_synthetic": 3580,
+  "identical_matches": 0.0,
+  "identical_matches_holdout": 0.0,
+  "identical_matches_training_holdout": 0.0,
+  "dcr_share": 0.503,
+  "qa_repeats": 3,
+  "qa_runs": [
+    {
+      "overall_accuracy": 0.8693225,
+      "univariate_accuracy": 0.9714686,
+      "bivariate_accuracy": 0.8959162,
+      "trivariate_accuracy": 0.7405829,
+      "discriminator_auc": 0.668,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.31,
+      "dcr_holdout": 0.306,
+      "dcr_share": 0.486
+    },
+    {
+      "overall_accuracy": 0.8693225,
+      "univariate_accuracy": 0.9714686,
+      "bivariate_accuracy": 0.8959162,
+      "trivariate_accuracy": 0.7405829,
+      "discriminator_auc": 0.652,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.315,
+      "dcr_holdout": 0.311,
+      "dcr_share": 0.508
+    },
+    {
+      "overall_accuracy": 0.8693225,
+      "univariate_accuracy": 0.9714686,
+      "bivariate_accuracy": 0.8959162,
+      "trivariate_accuracy": 0.7405829,
+      "discriminator_auc": 0.656,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.3,
+      "dcr_holdout": 0.296,
+      "dcr_share": 0.503
+    }
+  ],
+  "mia": {
+    "mia_auroc": 0.4906,
+    "mia_auroc_worst_case": 0.5094,
+    "n_train": 2864,
+    "n_holdout": 716,
+    "n_synthetic": 3580,
+    "mean_dist_train": 0.7004,
+    "mean_dist_holdout": 0.6951,
+    "columns_used": [
+      "Feedback_Text",
+      "Teaching_Clarity",
+      "Engagement",
+      "Effectiveness",
+      "Responsiveness",
+      "Overall_Score",
+      "Label"
+    ]
+  },
+  "high_cardinality_label_columns": [],
+  "mia_without_label_columns": {
+    "mia_auroc": 0.4906,
+    "mia_auroc_worst_case": 0.5094,
+    "n_train": 2864,
+    "n_holdout": 716,
+    "n_synthetic": 3580,
+    "mean_dist_train": 0.7004,
+    "mean_dist_holdout": 0.6951,
+    "columns_used": [
+      "Feedback_Text",
+      "Teaching_Clarity",
+      "Engagement",
+      "Effectiveness",
+      "Responsiveness",
+      "Overall_Score",
+      "Label"
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "dataset_name": "netflix_titles",
+  "model": "gemini-3.1-flash-lite_k0",
+  "real_data_path": "data/raw/netflix_titles.csv",
+  "synthetic_data_path": "data/processed/netflix_titles_gemini-3.1-flash-lite_k0.csv",
+  "free_text_columns": [
+    "title",
+    "cast",
+    "description"
+  ],
+  "structured_columns": [
+    "type",
+    "director",
+    "country",
+    "date_added",
+    "release_year",
+    "rating",
+    "duration",
+    "listed_in"
+  ],
+  "bertscore": {
+    "title": {
+      "bertscore_precision_mean": 0.5857839584350586,
+      "bertscore_recall_mean": 0.6500565409660339,
+      "bertscore_f1_mean": 0.615949273109436,
+      "bertscore_f1_std": 0.031178487464785576,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 8807,
+      "n_reference_pool": 1762
+    },
+    "cast": {
+      "bertscore_precision_mean": 0.6213982105255127,
+      "bertscore_recall_mean": 0.6402685642242432,
+      "bertscore_f1_mean": 0.6304594278335571,
+      "bertscore_f1_std": 0.029105525463819504,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 8807,
+      "n_reference_pool": 1607
+    },
+    "description": {
+      "bertscore_precision_mean": 0.6763368248939514,
+      "bertscore_recall_mean": 0.7180493474006653,
+      "bertscore_f1_mean": 0.69648277759552,
+      "bertscore_f1_std": 0.019300851970911026,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 8807,
+      "n_reference_pool": 1762
+    }
+  },
+  "mauve": {
+    "title": {
+      "mauve_score": 0.004345211108859876,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    },
+    "cast": {
+      "mauve_score": 0.004409641475434741,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    },
+    "description": {
+      "mauve_score": 0.004542211258035606,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    }
+  },
+  "privacy_nndr": {
+    "nndr_synthetic_mean": 1.3165915469384726,
+    "nndr_synthetic_median": 1.189398644424171,
+    "nndr_synthetic_share_below_threshold": 0.013057794935846486,
+    "nndr_holdout_mean": 1.0822047502605252,
+    "nndr_holdout_median": 0.8615704636680064,
+    "nndr_holdout_share_below_threshold": 0.09988649262202043,
+    "nndr_threshold": 0.5,
+    "n_structured_columns_used": 8
+  }
+}

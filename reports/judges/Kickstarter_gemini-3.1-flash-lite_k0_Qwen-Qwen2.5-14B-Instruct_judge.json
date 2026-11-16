@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Kickstarter",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 54973,
+      "completion_tokens": 1562,
+      "thinking_tokens": 0,
+      "total_tokens": 56535,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.5546875,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 142,
+      "incorrect": 114,
+      "predicted_real": 230,
+      "predicted_synthetic": 26,
+      "true_real_predicted_real": 122,
+      "true_real_predicted_synthetic": 6,
+      "true_synthetic_predicted_real": 108,
+      "true_synthetic_predicted_synthetic": 20,
+      "failed_to_parse": 0
+    }
+  }
+}

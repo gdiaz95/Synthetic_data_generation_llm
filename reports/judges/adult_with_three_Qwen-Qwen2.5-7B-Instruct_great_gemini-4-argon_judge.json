@@ -1,0 +1,37 @@
+{
+  "dataset_name": "adult_with_three",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct_great",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-4-argon",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 105444,
+      "completion_tokens": 2382,
+      "thinking_tokens": 533553,
+      "total_tokens": 641379,
+      "requests": 283
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-4-argon",
+      "provider": "gemini",
+      "accuracy": 0.72265625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 185,
+      "incorrect": 71,
+      "predicted_real": 123,
+      "predicted_synthetic": 101,
+      "true_real_predicted_real": 98,
+      "true_real_predicted_synthetic": 14,
+      "true_synthetic_predicted_real": 25,
+      "true_synthetic_predicted_synthetic": 87,
+      "failed_to_parse": 32
+    }
+  }
+}

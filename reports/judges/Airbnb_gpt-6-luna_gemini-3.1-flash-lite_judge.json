@@ -1,0 +1,76 @@
+{
+  "dataset_name": "Airbnb",
+  "generator_model": "gpt-6-luna",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "gemini-3.1-flash-lite",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 158506,
+      "completion_tokens": 4237,
+      "thinking_tokens": 382369,
+      "total_tokens": 545112,
+      "requests": 768
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "name": {
+        "task": "free_text_column",
+        "target": "name",
+        "model": "gemini-3.1-flash-lite",
+        "provider": "gemini",
+        "accuracy": 0.52734375,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 135,
+        "incorrect": 121,
+        "predicted_real": 227,
+        "predicted_synthetic": 29,
+        "true_real_predicted_real": 117,
+        "true_real_predicted_synthetic": 11,
+        "true_synthetic_predicted_real": 110,
+        "true_synthetic_predicted_synthetic": 18,
+        "failed_to_parse": 0
+      },
+      "amenities": {
+        "task": "free_text_column",
+        "target": "amenities",
+        "model": "gemini-3.1-flash-lite",
+        "provider": "gemini",
+        "accuracy": 0.5078125,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 130,
+        "incorrect": 126,
+        "predicted_real": 254,
+        "predicted_synthetic": 2,
+        "true_real_predicted_real": 128,
+        "true_real_predicted_synthetic": 0,
+        "true_synthetic_predicted_real": 126,
+        "true_synthetic_predicted_synthetic": 2,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "accuracy": 0.84765625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 217,
+      "incorrect": 39,
+      "predicted_real": 117,
+      "predicted_synthetic": 139,
+      "true_real_predicted_real": 103,
+      "true_real_predicted_synthetic": 25,
+      "true_synthetic_predicted_real": 14,
+      "true_synthetic_predicted_synthetic": 114,
+      "failed_to_parse": 0
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "dataset_name": "Spotify",
+  "free_text_columns": [],
+  "max_words_generation": 80,
+  "shape": [
+    114000,
+    19
+  ],
+  "pii_columns": []
+}

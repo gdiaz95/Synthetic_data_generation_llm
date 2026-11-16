@@ -41,7 +41,8 @@ run things.
 | `augment_dataset/` | One-off script that generated the Adult dataset's synthetic free-text columns |
 | `source/pipelines/` | The runnable pipeline scripts (see below) |
 | `experiments/` | Batch shell scripts that loop pipelines over many datasets |
-| `reports/`, `reports/membership/`, `reports/llm_metrics/` | JSON metric outputs |
+| `reports/` | JSON metric outputs behind the paper (see [reports/README.md](reports/README.md)) |
+| `source/paper/` | `make_paper_assets.py`: prints the paper's tables, numbers, and figure coordinates from `reports/` |
 | `logs/` | Per-run generation logs |
 
 ## Workflow
@@ -98,34 +99,49 @@ python -m source.metrics.run_judge --dataset-name <name> --generator-model <mode
 # BERTScore / MAUVE / NNDR privacy proxy for free-text columns
 python source/metrics/run_llm_text_metrics.py --dataset-name <name> --generator-model <model>
 
-# Distance-based membership-inference privacy check
-python -m source.metrics.run_membership --dataset-name <name> --generator-model <model>
+# Privacy (identical-match rate, DCR share, MIA): fits NPGC on the training split; run 1, 2, 3
+python -m source.metrics.run_privacy --dataset-name <name> --run 1
 ```
 
 Each reads `real_data_path`/`synthetic_data_path` from `configs/metrics.yml`
 (templated with `{dataset_name}`/`{generator_model}`), so the synthetic CSV from
-step 2 must already exist. Reports land in `reports/`, `reports/judges/`,
-`reports/llm_metrics/`, and `reports/membership/` respectively. Add `--yes` to
+step 2 must already exist (except for the privacy step, which samples its own
+structured data). Reports land in `reports/`, `reports/judges/`,
+`reports/llm_metrics/`, and `reports/privacy/` respectively. Add `--yes` to
 skip the LLM-judge billing prompt.
 
-### 4. Aggregate significance across all reports
+### 4. Significance tests across all reports
 
 ```bash
-python source/metrics/run_significance_tests.py
+python -m source.metrics.run_significance_tests
 ```
 
-Purely offline — scans every `reports/*_structured_metrics.json` produced in
-step 3 and writes `reports/significance_tests.json` (binomial/Wilson CIs, sign
-tests, cross-judge z-tests, k=0-vs-k=5 ablation comparison).
+Purely offline: reads the judge, structured, and free-text reports and writes
+`reports/significance_tests.json` (the paper's sign tests (i)–(v) and the judge
+quality-control flags).
 
-### Batch scripts
+## Reproducing the paper
 
-Loop the evaluation steps over the full set of datasets/models already encoded in each script:
+Every experiment in the paper is in two scripts, which loop the steps above over
+all datasets, generators, and judges:
 
 ```bash
-bash experiments/run_membership_all.sh
-bash experiments/run_text_metrics_all.sh
+bash experiments/run_metrics_billing.sh      # hosted APIs (Gemini, OpenAI): costs money
+bash experiments/run_metrics_no_billing.sh   # local GPU/CPU steps and the significance tests
 ```
+
+Each step is skipped when its report already exists, so a script can be rerun
+safely and only fills in what is missing; every run appends to
+`logs/redo_run/manifest.csv`. Then print every table, number, and figure
+coordinate in the paper:
+
+```bash
+poetry run python -m source.paper.make_paper_assets
+```
+
+The reports behind the paper are committed in `reports/`; see
+[reports/README.md](reports/README.md) for which report and output block
+belongs to which part of the paper.
 
 ## Using your own dataset
 

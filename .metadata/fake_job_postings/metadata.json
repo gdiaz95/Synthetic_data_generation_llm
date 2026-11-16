@@ -1,0 +1,13 @@
+{
+  "dataset_name": "fake_job_postings",
+  "free_text_columns": [
+    "description"
+  ],
+  "max_words_generation": 400,
+  "target_column": "fraudulent",
+  "shape": [
+    17880,
+    14
+  ],
+  "pii_columns": []
+}

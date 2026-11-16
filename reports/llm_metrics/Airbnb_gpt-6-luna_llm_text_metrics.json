@@ -1,0 +1,76 @@
+{
+  "dataset_name": "Airbnb",
+  "model": "gpt-6-luna",
+  "real_data_path": "data/raw/Airbnb.csv",
+  "synthetic_data_path": "data/processed/Airbnb_gpt-6-luna.csv",
+  "free_text_columns": [
+    "name",
+    "amenities"
+  ],
+  "structured_columns": [
+    "host_response_time",
+    "host_response_rate",
+    "host_acceptance_rate",
+    "host_is_superhost",
+    "host_total_listings_count",
+    "host_has_profile_pic",
+    "host_identity_verified",
+    "neighbourhood",
+    "property_type",
+    "accommodates",
+    "bedrooms",
+    "price",
+    "minimum_nights",
+    "maximum_nights",
+    "review_scores_rating",
+    "review_scores_accuracy",
+    "review_scores_cleanliness",
+    "review_scores_checkin",
+    "review_scores_communication",
+    "review_scores_location",
+    "review_scores_value",
+    "instant_bookable"
+  ],
+  "bertscore": {
+    "name": {
+      "bertscore_precision_mean": 0.7130598425865173,
+      "bertscore_recall_mean": 0.696520209312439,
+      "bertscore_f1_mean": 0.7042352557182312,
+      "bertscore_f1_std": 0.05321700498461723,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 20000,
+      "n_reference_pool": 3994
+    },
+    "amenities": {
+      "bertscore_precision_mean": 0.8419396281242371,
+      "bertscore_recall_mean": 0.7689899802207947,
+      "bertscore_f1_mean": 0.8035320043563843,
+      "bertscore_f1_std": 0.023230072110891342,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 20000,
+      "n_reference_pool": 4000
+    }
+  },
+  "mauve": {
+    "name": {
+      "mauve_score": 0.09176101790582046,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    },
+    "amenities": {
+      "mauve_score": 0.004072096261961255,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    }
+  },
+  "privacy_nndr": {
+    "nndr_synthetic_mean": 1.5629061049557351,
+    "nndr_synthetic_median": 1.2037906075887188,
+    "nndr_synthetic_share_below_threshold": 0.0096,
+    "nndr_holdout_mean": 23.562194721174492,
+    "nndr_holdout_median": 1.563341709853192,
+    "nndr_holdout_share_below_threshold": 0.08725,
+    "nndr_threshold": 0.5,
+    "n_structured_columns_used": 22
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Airbnb",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gemini-4-argon",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 133229,
+      "completion_tokens": 2313,
+      "thinking_tokens": 201516,
+      "total_tokens": 337058,
+      "requests": 259
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-4-argon",
+      "provider": "gemini",
+      "accuracy": 0.9921875,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 254,
+      "incorrect": 2,
+      "predicted_real": 126,
+      "predicted_synthetic": 130,
+      "true_real_predicted_real": 126,
+      "true_real_predicted_synthetic": 2,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

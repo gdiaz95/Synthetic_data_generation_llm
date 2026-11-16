@@ -1,0 +1,15 @@
+{
+  "dataset_name": "adult_with_three",
+  "free_text_columns": [
+    "job_description",
+    "daily_tasks",
+    "work_snippet"
+  ],
+  "target_column": "income",
+  "max_words_generation": 90,
+  "shape": [
+    48842,
+    18
+  ],
+  "pii_columns": []
+}

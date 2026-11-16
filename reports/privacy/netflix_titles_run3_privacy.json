@@ -1,0 +1,93 @@
+{
+  "dataset": "netflix_titles",
+  "run": 3,
+  "n_train": 7045,
+  "n_holdout": 1762,
+  "n_synthetic": 8807,
+  "identical_matches": 0.0,
+  "identical_matches_holdout": 0.0,
+  "identical_matches_training_holdout": 0.003,
+  "dcr_share": 0.513,
+  "qa_repeats": 3,
+  "qa_runs": [
+    {
+      "overall_accuracy": 0.6691087,
+      "univariate_accuracy": 0.8500487,
+      "bivariate_accuracy": 0.6547225,
+      "trivariate_accuracy": 0.5025548,
+      "discriminator_auc": 0.958,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.003,
+      "dcr_training": 0.21,
+      "dcr_holdout": 0.209,
+      "dcr_share": 0.51
+    },
+    {
+      "overall_accuracy": 0.6691092,
+      "univariate_accuracy": 0.8497637,
+      "bivariate_accuracy": 0.6547593,
+      "trivariate_accuracy": 0.5028045,
+      "discriminator_auc": 0.956,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.006,
+      "dcr_training": 0.14,
+      "dcr_holdout": 0.143,
+      "dcr_share": 0.533
+    },
+    {
+      "overall_accuracy": 0.6711188,
+      "univariate_accuracy": 0.8505888,
+      "bivariate_accuracy": 0.6576196,
+      "trivariate_accuracy": 0.505148,
+      "discriminator_auc": 0.954,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.003,
+      "dcr_training": 0.154,
+      "dcr_holdout": 0.155,
+      "dcr_share": 0.513
+    }
+  ],
+  "mia": {
+    "mia_auroc": 0.6883,
+    "mia_auroc_worst_case": 0.6883,
+    "n_train": 7045,
+    "n_holdout": 1762,
+    "n_synthetic": 8807,
+    "mean_dist_train": 50.5298,
+    "mean_dist_holdout": 216.7903,
+    "columns_used": [
+      "type",
+      "director",
+      "country",
+      "date_added",
+      "release_year",
+      "rating",
+      "duration",
+      "listed_in"
+    ]
+  },
+  "high_cardinality_label_columns": [
+    "director",
+    "country",
+    "date_added",
+    "listed_in"
+  ],
+  "mia_without_label_columns": {
+    "mia_auroc": 0.4975,
+    "mia_auroc_worst_case": 0.5025,
+    "n_train": 7045,
+    "n_holdout": 1762,
+    "n_synthetic": 8807,
+    "mean_dist_train": 0.2656,
+    "mean_dist_holdout": 0.2813,
+    "columns_used": [
+      "type",
+      "release_year",
+      "rating",
+      "duration"
+    ]
+  }
+}

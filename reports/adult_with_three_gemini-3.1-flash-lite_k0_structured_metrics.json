@@ -1,0 +1,249 @@
+{
+  "dataset_name": "adult_with_three",
+  "model": "gemini-3.1-flash-lite_k0",
+  "real_data_path": "data/raw/adult_with_three.csv",
+  "synthetic_data_path": "data/processed/adult_with_three_gemini-3.1-flash-lite_k0.csv",
+  "structured_columns": [
+    "age",
+    "workclass",
+    "fnlwgt",
+    "education",
+    "education-num",
+    "marital-status",
+    "occupation",
+    "relationship",
+    "race",
+    "sex",
+    "capital-gain",
+    "capital-loss",
+    "hours-per-week",
+    "native-country",
+    "income"
+  ],
+  "free_text_columns": [
+    "job_description",
+    "daily_tasks",
+    "work_snippet"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.9167995,
+    "univariate_accuracy": 0.9905867,
+    "bivariate_accuracy": 0.9239067,
+    "trivariate_accuracy": 0.8359051,
+    "discriminator_auc": 0.975,
+    "identical_matches": 0.0,
+    "identical_matches_holdout": 0.0,
+    "identical_matches_training_holdout": 0.001,
+    "dcr_training": 0.044,
+    "dcr_holdout": 0.044,
+    "dcr_share": 0.52,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.916845,
+        "univariate_accuracy": 0.99063,
+        "bivariate_accuracy": 0.9239571,
+        "trivariate_accuracy": 0.8359478,
+        "discriminator_auc": 0.977,
+        "identical_matches": 0.0,
+        "identical_matches_holdout": 0.0,
+        "identical_matches_training_holdout": 0.001,
+        "dcr_training": 0.029,
+        "dcr_holdout": 0.03,
+        "dcr_share": 0.527
+      },
+      {
+        "overall_accuracy": 0.9167995,
+        "univariate_accuracy": 0.9905867,
+        "bivariate_accuracy": 0.9239067,
+        "trivariate_accuracy": 0.8359051,
+        "discriminator_auc": 0.975,
+        "identical_matches": 0.0,
+        "identical_matches_holdout": 0.0,
+        "identical_matches_training_holdout": 0.001,
+        "dcr_training": 0.044,
+        "dcr_holdout": 0.044,
+        "dcr_share": 0.499
+      },
+      {
+        "overall_accuracy": 0.9167995,
+        "univariate_accuracy": 0.9905867,
+        "bivariate_accuracy": 0.9239067,
+        "trivariate_accuracy": 0.8359051,
+        "discriminator_auc": 0.973,
+        "identical_matches": 0.0,
+        "identical_matches_holdout": 0.0,
+        "identical_matches_training_holdout": 0.0,
+        "dcr_training": 0.078,
+        "dcr_holdout": 0.079,
+        "dcr_share": 0.52
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "job_description": {
+      "text_column": "job_description",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 15998,
+      "n_real_holdout": 4000,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.3206262894010919,
+      "mmd_rbf": 0.06709228991778848,
+      "frechet_real_train_vs_synthetic": 0.3206262894010919,
+      "mmd_rbf_real_train_vs_synthetic": 0.06709228991778848,
+      "frechet_real_train_vs_real_holdout": 0.010480580597525973,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00021042809339477664,
+      "frechet_ratio_to_holdout": 30.592416748054813,
+      "mmd_ratio_to_holdout": 318.8371326062392
+    },
+    "daily_tasks": {
+      "text_column": "daily_tasks",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 15996,
+      "n_real_holdout": 4000,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.23917506693495488,
+      "mmd_rbf": 0.05177592016313437,
+      "frechet_real_train_vs_synthetic": 0.23917506693495488,
+      "mmd_rbf_real_train_vs_synthetic": 0.05177592016313437,
+      "frechet_real_train_vs_real_holdout": 0.012087073553225042,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00018185899313405418,
+      "frechet_ratio_to_holdout": 19.787673656634514,
+      "mmd_ratio_to_holdout": 284.7036556777187
+    },
+    "work_snippet": {
+      "text_column": "work_snippet",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 15998,
+      "n_real_holdout": 4000,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.3502711005543888,
+      "mmd_rbf": 0.09688492869908838,
+      "frechet_real_train_vs_synthetic": 0.3502711005543888,
+      "mmd_rbf_real_train_vs_synthetic": 0.09688492869908838,
+      "frechet_real_train_vs_real_holdout": 0.018010231994362885,
+      "mmd_rbf_real_train_vs_real_holdout": 0.0001828894631010769,
+      "frechet_ratio_to_holdout": 19.448450228959956,
+      "mmd_ratio_to_holdout": 529.7458205426701
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.8874512091199807,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.9907447259322689
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.7841576923076923
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 16000,
+    "n_real_holdout": 4000,
+    "n_synthetic": 20000,
+    "structured_columns": [
+      "age",
+      "workclass",
+      "fnlwgt",
+      "education",
+      "education-num",
+      "marital-status",
+      "occupation",
+      "relationship",
+      "race",
+      "sex",
+      "capital-gain",
+      "capital-loss",
+      "hours-per-week",
+      "native-country",
+      "income"
+    ],
+    "text_columns": [
+      "job_description",
+      "daily_tasks",
+      "work_snippet"
+    ],
+    "structured_block": {
+      "width": 15,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "job_description": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "daily_tasks": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "work_snippet": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 2319,
+    "auc_real_vs_holdout": 0.506191,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.7805462,
+    "accuracy_synth_vs_holdout": 0.8333333333333334,
+    "auc_drop_real_to_synth": 0.2743552,
+    "accuracy_drop_real_to_synth": 0.033333333333333326
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "income",
+    "n_synthetic_train": 20000,
+    "n_holdout_test": 4000,
+    "structured_columns": [
+      "age",
+      "workclass",
+      "fnlwgt",
+      "education",
+      "education-num",
+      "marital-status",
+      "occupation",
+      "relationship",
+      "race",
+      "sex",
+      "capital-gain",
+      "capital-loss",
+      "hours-per-week",
+      "native-country"
+    ],
+    "text_columns": [
+      "job_description",
+      "daily_tasks",
+      "work_snippet"
+    ],
+    "structured_block": {
+      "width": 14,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "job_description": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "daily_tasks": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "work_snippet": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 2318,
+    "accuracy": 0.773,
+    "balanced_accuracy": 0.5325561320591587,
+    "f1_weighted": 0.6915005729468668,
+    "roc_auc": 0.8364237510353609
+  }
+}

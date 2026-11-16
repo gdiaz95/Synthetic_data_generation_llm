@@ -1,0 +1,84 @@
+{
+  "dataset_name": "adult_with_three",
+  "model": "gemini-3.1-flash-lite",
+  "real_data_path": "data/raw/adult_with_three.csv",
+  "synthetic_data_path": "data/processed/adult_with_three_gemini-3.1-flash-lite.csv",
+  "free_text_columns": [
+    "job_description",
+    "daily_tasks",
+    "work_snippet"
+  ],
+  "structured_columns": [
+    "age",
+    "workclass",
+    "fnlwgt",
+    "education",
+    "education-num",
+    "marital-status",
+    "occupation",
+    "relationship",
+    "race",
+    "sex",
+    "capital-gain",
+    "capital-loss",
+    "hours-per-week",
+    "native-country",
+    "income"
+  ],
+  "bertscore": {
+    "job_description": {
+      "bertscore_precision_mean": 0.7992175221443176,
+      "bertscore_recall_mean": 0.8012087345123291,
+      "bertscore_f1_mean": 0.8001766204833984,
+      "bertscore_f1_std": 0.018503133207559586,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 20000,
+      "n_reference_pool": 4000
+    },
+    "daily_tasks": {
+      "bertscore_precision_mean": 0.7689688205718994,
+      "bertscore_recall_mean": 0.7736528515815735,
+      "bertscore_f1_mean": 0.77126145362854,
+      "bertscore_f1_std": 0.022309938445687294,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 20000,
+      "n_reference_pool": 4000
+    },
+    "work_snippet": {
+      "bertscore_precision_mean": 0.7911503911018372,
+      "bertscore_recall_mean": 0.787994921207428,
+      "bertscore_f1_mean": 0.7894966006278992,
+      "bertscore_f1_std": 0.029790984466671944,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 20000,
+      "n_reference_pool": 4000
+    }
+  },
+  "mauve": {
+    "job_description": {
+      "mauve_score": 0.11508823049753047,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    },
+    "daily_tasks": {
+      "mauve_score": 0.004988565395957938,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    },
+    "work_snippet": {
+      "mauve_score": 0.0667064473221706,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    }
+  },
+  "privacy_nndr": {
+    "nndr_synthetic_mean": 1.4975012206742235,
+    "nndr_synthetic_median": 1.3041800142679907,
+    "nndr_synthetic_share_below_threshold": 0.0176,
+    "nndr_holdout_mean": 1.2832247404365411,
+    "nndr_holdout_median": 0.9495475994786613,
+    "nndr_holdout_share_below_threshold": 0.0735,
+    "nndr_threshold": 0.5,
+    "n_structured_columns_used": 15
+  }
+}

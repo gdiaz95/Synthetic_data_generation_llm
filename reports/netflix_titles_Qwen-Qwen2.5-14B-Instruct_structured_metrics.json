@@ -1,0 +1,220 @@
+{
+  "dataset_name": "netflix_titles",
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "real_data_path": "data/raw/netflix_titles.csv",
+  "synthetic_data_path": "data/processed/netflix_titles_Qwen-Qwen2.5-14B-Instruct.csv",
+  "structured_columns": [
+    "type",
+    "director",
+    "country",
+    "date_added",
+    "release_year",
+    "rating",
+    "duration",
+    "listed_in"
+  ],
+  "free_text_columns": [
+    "title",
+    "cast",
+    "description"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.6706282,
+    "univariate_accuracy": 0.8514525,
+    "bivariate_accuracy": 0.6565111,
+    "trivariate_accuracy": 0.5039211,
+    "discriminator_auc": 0.949,
+    "identical_matches": 0.0,
+    "dcr_training": 0.152,
+    "dcr_holdout": 0.153,
+    "dcr_share": 0.526,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.6692555,
+        "univariate_accuracy": 0.8504875,
+        "bivariate_accuracy": 0.6550304,
+        "trivariate_accuracy": 0.5022486,
+        "discriminator_auc": 0.95,
+        "identical_matches": 0.0,
+        "dcr_training": 0.311,
+        "dcr_holdout": 0.314,
+        "dcr_share": 0.645
+      },
+      {
+        "overall_accuracy": 0.6728355,
+        "univariate_accuracy": 0.8528575,
+        "bivariate_accuracy": 0.6586971,
+        "trivariate_accuracy": 0.506952,
+        "discriminator_auc": 0.949,
+        "identical_matches": 0.0,
+        "dcr_training": 0.148,
+        "dcr_holdout": 0.15,
+        "dcr_share": 0.526
+      },
+      {
+        "overall_accuracy": 0.6706282,
+        "univariate_accuracy": 0.8514525,
+        "bivariate_accuracy": 0.6565111,
+        "trivariate_accuracy": 0.5039211,
+        "discriminator_auc": 0.949,
+        "identical_matches": 0.0,
+        "dcr_training": 0.152,
+        "dcr_holdout": 0.153,
+        "dcr_share": 0.512
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "title": {
+      "text_column": "title",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 7045,
+      "n_real_holdout": 1762,
+      "n_synthetic": 8807,
+      "frechet_distance": 0.3060885141583018,
+      "mmd_rbf": 0.026295804456782146,
+      "frechet_real_train_vs_synthetic": 0.3060885141583018,
+      "mmd_rbf_real_train_vs_synthetic": 0.026295804456782146,
+      "frechet_real_train_vs_real_holdout": 0.07945978038577921,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00041149375172744307,
+      "frechet_ratio_to_holdout": 3.8521188036543075,
+      "mmd_ratio_to_holdout": 63.90328977388563
+    },
+    "cast": {
+      "text_column": "cast",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 6375,
+      "n_real_holdout": 1607,
+      "n_synthetic": 8789,
+      "frechet_distance": 0.051778112634192054,
+      "mmd_rbf": 0.011013986371938955,
+      "frechet_real_train_vs_synthetic": 0.051778112634192054,
+      "mmd_rbf_real_train_vs_synthetic": 0.011013986371938955,
+      "frechet_real_train_vs_real_holdout": 0.05684863427371099,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00045156376982857793,
+      "frechet_ratio_to_holdout": 0.9108066235134914,
+      "mmd_ratio_to_holdout": 24.39076628339796
+    },
+    "description": {
+      "text_column": "description",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 7045,
+      "n_real_holdout": 1762,
+      "n_synthetic": 8807,
+      "frechet_distance": 0.16315396524596787,
+      "mmd_rbf": 0.02875171541173016,
+      "frechet_real_train_vs_synthetic": 0.16315396524596787,
+      "mmd_rbf_real_train_vs_synthetic": 0.02875171541173016,
+      "frechet_real_train_vs_real_holdout": 0.02533600744832261,
+      "mmd_rbf_real_train_vs_real_holdout": 0.0004177702030703223,
+      "frechet_ratio_to_holdout": 6.439608354976609,
+      "mmd_ratio_to_holdout": 68.82184320572631
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.6790216037977225,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.8726068393385928
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.48543636825685205
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 7045,
+    "n_real_holdout": 1762,
+    "n_synthetic": 8807,
+    "structured_columns": [
+      "type",
+      "director",
+      "country",
+      "date_added",
+      "release_year",
+      "rating",
+      "duration",
+      "listed_in"
+    ],
+    "text_columns": [
+      "title",
+      "cast",
+      "description"
+    ],
+    "structured_block": {
+      "width": 8,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "title": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "cast": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "description": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 2312,
+    "auc_real_vs_holdout": 0.5493206936380458,
+    "accuracy_real_vs_holdout": 0.7997275204359673,
+    "auc_synth_vs_holdout": 0.5570785989236748,
+    "accuracy_synth_vs_holdout": 0.8331441543700341,
+    "auc_drop_real_to_synth": 0.00775790528562903,
+    "accuracy_drop_real_to_synth": 0.0334166339340668
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "type",
+    "n_synthetic_train": 8807,
+    "n_holdout_test": 1762,
+    "structured_columns": [
+      "director",
+      "country",
+      "date_added",
+      "release_year",
+      "rating",
+      "duration",
+      "listed_in"
+    ],
+    "text_columns": [
+      "title",
+      "cast",
+      "description"
+    ],
+    "structured_block": {
+      "width": 7,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "title": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "cast": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "description": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 2311,
+    "accuracy": 0.818955732122588,
+    "balanced_accuracy": 0.7364716987938769,
+    "f1_weighted": 0.8048008789606078,
+    "roc_auc": 0.881985112856095
+  }
+}

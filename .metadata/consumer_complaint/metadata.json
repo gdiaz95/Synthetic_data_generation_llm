@@ -1,0 +1,12 @@
+{
+  "dataset_name": "consumer_complaint",
+  "free_text_columns": [
+    "consumer_complaint_narrative"
+  ],
+  "max_words_generation": 300,
+  "shape": [
+    1282355,
+    15
+  ],
+  "pii_columns": []
+}

@@ -1,0 +1,235 @@
+{
+  "dataset_name": "Airbnb",
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "real_data_path": "data/raw/Airbnb.csv",
+  "synthetic_data_path": "data/processed/Airbnb_Qwen-Qwen2.5-14B-Instruct.csv",
+  "structured_columns": [
+    "host_response_time",
+    "host_response_rate",
+    "host_acceptance_rate",
+    "host_is_superhost",
+    "host_total_listings_count",
+    "host_has_profile_pic",
+    "host_identity_verified",
+    "neighbourhood",
+    "property_type",
+    "accommodates",
+    "bedrooms",
+    "price",
+    "minimum_nights",
+    "maximum_nights",
+    "review_scores_rating",
+    "review_scores_accuracy",
+    "review_scores_cleanliness",
+    "review_scores_checkin",
+    "review_scores_communication",
+    "review_scores_location",
+    "review_scores_value",
+    "instant_bookable"
+  ],
+  "free_text_columns": [
+    "name",
+    "amenities"
+  ],
+  "metrics_qa": {
+    "overall_accuracy": 0.894376,
+    "univariate_accuracy": 0.9919091,
+    "bivariate_accuracy": 0.8990563,
+    "trivariate_accuracy": 0.7921625,
+    "discriminator_auc": 0.995,
+    "identical_matches": 0.001,
+    "dcr_training": 0.427,
+    "dcr_holdout": 0.43,
+    "dcr_share": 0.576,
+    "n_repeats": 3,
+    "runs": [
+      {
+        "overall_accuracy": 0.894376,
+        "univariate_accuracy": 0.9919091,
+        "bivariate_accuracy": 0.8990563,
+        "trivariate_accuracy": 0.7921625,
+        "discriminator_auc": 0.995,
+        "identical_matches": 0.0,
+        "dcr_training": 0.431,
+        "dcr_holdout": 0.434,
+        "dcr_share": 0.6
+      },
+      {
+        "overall_accuracy": 0.894376,
+        "univariate_accuracy": 0.9919091,
+        "bivariate_accuracy": 0.8990563,
+        "trivariate_accuracy": 0.7921625,
+        "discriminator_auc": 0.995,
+        "identical_matches": 0.001,
+        "dcr_training": 0.427,
+        "dcr_holdout": 0.43,
+        "dcr_share": 0.57
+      },
+      {
+        "overall_accuracy": 0.894376,
+        "univariate_accuracy": 0.9919091,
+        "bivariate_accuracy": 0.8990563,
+        "trivariate_accuracy": 0.7921625,
+        "discriminator_auc": 0.995,
+        "identical_matches": 0.001,
+        "dcr_training": 0.425,
+        "dcr_holdout": 0.43,
+        "dcr_share": 0.576
+      }
+    ]
+  },
+  "free_text_distribution": {
+    "name": {
+      "text_column": "name",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 15993,
+      "n_real_holdout": 3994,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.4115662783737929,
+      "mmd_rbf": 0.03165659933649356,
+      "frechet_real_train_vs_synthetic": 0.4115662783737929,
+      "mmd_rbf_real_train_vs_synthetic": 0.03165659933649356,
+      "frechet_real_train_vs_real_holdout": 0.019577239051918608,
+      "mmd_rbf_real_train_vs_real_holdout": 0.0001835569015715688,
+      "frechet_ratio_to_holdout": 21.022692591244553,
+      "mmd_ratio_to_holdout": 172.46204890939862
+    },
+    "amenities": {
+      "text_column": "amenities",
+      "embedding_backend": "tfidf_svd",
+      "embedding_dim": 768,
+      "n_real_train": 16000,
+      "n_real_holdout": 4000,
+      "n_synthetic": 20000,
+      "frechet_distance": 0.14044575069207205,
+      "mmd_rbf": 0.00788492854494871,
+      "frechet_real_train_vs_synthetic": 0.14044575069207205,
+      "mmd_rbf_real_train_vs_synthetic": 0.00788492854494871,
+      "frechet_real_train_vs_real_holdout": 0.026462965091963397,
+      "mmd_rbf_real_train_vs_real_holdout": 0.00018995541118593806,
+      "frechet_ratio_to_holdout": 5.307256772020772,
+      "mmd_ratio_to_holdout": 41.50936525430455
+    }
+  },
+  "quality_report": {
+    "overall_score": 0.8350047261783315,
+    "properties": [
+      {
+        "Property": "Column Shapes",
+        "Score": 0.940301685040939
+      },
+      {
+        "Property": "Column Pair Trends",
+        "Score": 0.729707767315724
+      }
+    ]
+  },
+  "joint_holdout_discriminator": {
+    "embedding_backend": "tstr_weighted_structured_plus_tfidf_svd",
+    "n_real_train": 16000,
+    "n_real_holdout": 4000,
+    "n_synthetic": 20000,
+    "structured_columns": [
+      "host_response_time",
+      "host_response_rate",
+      "host_acceptance_rate",
+      "host_is_superhost",
+      "host_total_listings_count",
+      "host_has_profile_pic",
+      "host_identity_verified",
+      "neighbourhood",
+      "property_type",
+      "accommodates",
+      "bedrooms",
+      "price",
+      "minimum_nights",
+      "maximum_nights",
+      "review_scores_rating",
+      "review_scores_accuracy",
+      "review_scores_cleanliness",
+      "review_scores_checkin",
+      "review_scores_communication",
+      "review_scores_location",
+      "review_scores_value",
+      "instant_bookable"
+    ],
+    "text_columns": [
+      "name",
+      "amenities"
+    ],
+    "structured_block": {
+      "width": 22,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "name": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "amenities": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 1558,
+    "auc_real_vs_holdout": 0.50072,
+    "accuracy_real_vs_holdout": 0.8,
+    "auc_synth_vs_holdout": 0.7426776,
+    "accuracy_synth_vs_holdout": 0.8366666666666667,
+    "auc_drop_real_to_synth": 0.2419576,
+    "accuracy_drop_real_to_synth": 0.036666666666666625
+  },
+  "tstr": {
+    "task": "classification",
+    "target_column": "host_is_superhost",
+    "n_synthetic_train": 19987,
+    "n_holdout_test": 3995,
+    "structured_columns": [
+      "host_response_time",
+      "host_response_rate",
+      "host_acceptance_rate",
+      "host_total_listings_count",
+      "host_has_profile_pic",
+      "host_identity_verified",
+      "neighbourhood",
+      "property_type",
+      "accommodates",
+      "bedrooms",
+      "price",
+      "minimum_nights",
+      "maximum_nights",
+      "review_scores_rating",
+      "review_scores_accuracy",
+      "review_scores_cleanliness",
+      "review_scores_checkin",
+      "review_scores_communication",
+      "review_scores_location",
+      "review_scores_value",
+      "instant_bookable"
+    ],
+    "text_columns": [
+      "name",
+      "amenities"
+    ],
+    "structured_block": {
+      "width": 21,
+      "weight": 1.0
+    },
+    "text_blocks": {
+      "name": {
+        "width": 768,
+        "weight": 0.01
+      },
+      "amenities": {
+        "width": 768,
+        "weight": 0.01
+      }
+    },
+    "total_feature_width": 1557,
+    "accuracy": 0.8100125156445557,
+    "balanced_accuracy": 0.5,
+    "f1_weighted": 0.724989766457138,
+    "roc_auc": 0.7454249052572264
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "dataset": "Kickstarter",
+  "run": 2,
+  "n_train": 16000,
+  "n_holdout": 4000,
+  "n_synthetic": 20000,
+  "identical_matches": 0.0,
+  "identical_matches_holdout": 0.0,
+  "identical_matches_training_holdout": 0.0,
+  "dcr_share": 0.509,
+  "qa_repeats": 3,
+  "qa_runs": [
+    {
+      "overall_accuracy": 0.912074,
+      "univariate_accuracy": 0.98268,
+      "bivariate_accuracy": 0.9209833,
+      "trivariate_accuracy": 0.8325588,
+      "discriminator_auc": 0.863,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.05,
+      "dcr_holdout": 0.051,
+      "dcr_share": 0.509
+    },
+    {
+      "overall_accuracy": 0.912074,
+      "univariate_accuracy": 0.98268,
+      "bivariate_accuracy": 0.9209833,
+      "trivariate_accuracy": 0.8325587,
+      "discriminator_auc": 0.873,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.204,
+      "dcr_holdout": 0.205,
+      "dcr_share": 0.507
+    },
+    {
+      "overall_accuracy": 0.912074,
+      "univariate_accuracy": 0.98268,
+      "bivariate_accuracy": 0.9209833,
+      "trivariate_accuracy": 0.8325588,
+      "discriminator_auc": 0.873,
+      "identical_matches": 0.007,
+      "identical_matches_holdout": 0.009,
+      "identical_matches_training_holdout": 0.013,
+      "dcr_training": 0.065,
+      "dcr_holdout": 0.066,
+      "dcr_share": 0.513
+    }
+  ],
+  "mia": {
+    "mia_auroc": 0.4977,
+    "mia_auroc_worst_case": 0.5023,
+    "n_train": 16000,
+    "n_holdout": 4000,
+    "n_synthetic": 20000,
+    "mean_dist_train": 0.9103,
+    "mean_dist_holdout": 0.8929,
+    "columns_used": [
+      "category",
+      "currency",
+      "goal",
+      "pledged",
+      "state",
+      "backers",
+      "country",
+      "launch_year",
+      "launch_month",
+      "launch_day"
+    ]
+  },
+  "high_cardinality_label_columns": [],
+  "mia_without_label_columns": {
+    "mia_auroc": 0.4977,
+    "mia_auroc_worst_case": 0.5023,
+    "n_train": 16000,
+    "n_holdout": 4000,
+    "n_synthetic": 20000,
+    "mean_dist_train": 0.9103,
+    "mean_dist_holdout": 0.8929,
+    "columns_used": [
+      "category",
+      "currency",
+      "goal",
+      "pledged",
+      "state",
+      "backers",
+      "country",
+      "launch_year",
+      "launch_month",
+      "launch_day"
+    ]
+  }
+}

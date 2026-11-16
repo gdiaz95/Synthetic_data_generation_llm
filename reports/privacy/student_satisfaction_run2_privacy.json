@@ -1,0 +1,101 @@
+{
+  "dataset": "student_satisfaction",
+  "run": 2,
+  "n_train": 464,
+  "n_holdout": 116,
+  "n_synthetic": 580,
+  "identical_matches": 0.0,
+  "identical_matches_holdout": 0.0,
+  "identical_matches_training_holdout": 0.0,
+  "dcr_share": 0.603,
+  "qa_repeats": 3,
+  "qa_runs": [
+    {
+      "overall_accuracy": 0.6581494,
+      "univariate_accuracy": 0.8806025,
+      "bivariate_accuracy": 0.6636889,
+      "trivariate_accuracy": 0.4301569,
+      "discriminator_auc": 0.897,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.097,
+      "dcr_holdout": 0.099,
+      "dcr_share": 0.595
+    },
+    {
+      "overall_accuracy": 0.6518489,
+      "univariate_accuracy": 0.8768667,
+      "bivariate_accuracy": 0.657497,
+      "trivariate_accuracy": 0.4211832,
+      "discriminator_auc": 0.933,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.23,
+      "dcr_holdout": 0.242,
+      "dcr_share": 0.603
+    },
+    {
+      "overall_accuracy": 0.6563603,
+      "univariate_accuracy": 0.8834758,
+      "bivariate_accuracy": 0.6598997,
+      "trivariate_accuracy": 0.4257053,
+      "discriminator_auc": 0.903,
+      "identical_matches": 0.0,
+      "identical_matches_holdout": 0.0,
+      "identical_matches_training_holdout": 0.0,
+      "dcr_training": 0.097,
+      "dcr_holdout": 0.101,
+      "dcr_share": 0.629
+    }
+  ],
+  "mia": {
+    "mia_auroc": 0.5243,
+    "mia_auroc_worst_case": 0.5243,
+    "n_train": 464,
+    "n_holdout": 116,
+    "n_synthetic": 580,
+    "mean_dist_train": 5.3972,
+    "mean_dist_holdout": 6.2613,
+    "columns_used": [
+      "SN",
+      "Total Feedback Given",
+      "Total Configured",
+      "Questions",
+      "Weightage 1",
+      "Weightage 2",
+      "Weightage 3",
+      "Weightage 4",
+      "Weightage 5",
+      "Average/ Percentage",
+      "Course Name ",
+      "Basic Course"
+    ]
+  },
+  "high_cardinality_label_columns": [
+    "Average/ Percentage"
+  ],
+  "mia_without_label_columns": {
+    "mia_auroc": 0.5255,
+    "mia_auroc_worst_case": 0.5255,
+    "n_train": 464,
+    "n_holdout": 116,
+    "n_synthetic": 580,
+    "mean_dist_train": 2.9577,
+    "mean_dist_holdout": 2.8645,
+    "columns_used": [
+      "SN",
+      "Total Feedback Given",
+      "Total Configured",
+      "Questions",
+      "Weightage 1",
+      "Weightage 2",
+      "Weightage 3",
+      "Weightage 4",
+      "Weightage 5",
+      "Course Name ",
+      "Basic Course"
+    ]
+  }
+}

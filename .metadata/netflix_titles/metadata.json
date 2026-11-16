@@ -1,0 +1,27 @@
+{
+  "dataset_name": "netflix_titles",
+  "free_text_columns": [
+    "title",
+    "cast",
+    "description"
+  ],
+  "max_words_generation": 120,
+  "feature_weights": {
+    "type": 1.0,
+    "director": 1.0,
+    "country": 5.0,
+    "date_added": 1.0,
+    "release_year": 1.0,
+    "rating": 1.0,
+    "duration": 1.0,
+    "listed_in": 1.0
+  },
+  "target_column": "type",
+  "shape": [
+    8807,
+    11
+  ],
+  "pii_columns": [
+    "director"
+  ]
+}

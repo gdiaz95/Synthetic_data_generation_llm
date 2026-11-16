@@ -48,13 +48,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = REPO_ROOT / "configs" / "metrics.yml"
 METADATA_ROOT = REPO_ROOT / ".metadata"
 OUTPUT_DIR = REPO_ROOT / "reports" / "linguistic_quality"
-TEX_OUTPUT_PATH = REPO_ROOT / "writing" / "linguistic_quality.tex"
 
 DATASETS = ["adult_with_three", "Airbnb", "consumer_complaint", "fake_job_postings",
             "Kickstarter", "netflix_titles"]
 MAIN_MODELS = ["gemini-3.1-flash-lite", "gpt-6-luna", "Qwen/Qwen2.5-14B-Instruct"]
 K0_MODEL = "gemini-3.1-flash-lite_k0"
-K0_BASE_MODEL = "gemini-3.1-flash-lite"
 
 MATTR_WINDOW = 100
 N_SEEDS = 5
@@ -338,146 +336,6 @@ _COL_ORDER = [
 ]
 
 
-def _fmt(x: float, nd: int = 2) -> str:
-    return "---" if x != x else f"{x:.{nd}f}"
-
-
-def _mean_over_variants(col_results: dict[str, Any], models: list[str], field: str) -> float:
-    vals = [col_results[m][field] for m in models if m in col_results]
-    return float(np.mean(vals)) if vals else float("nan")
-
-
-def build_main_table(all_results: dict[str, Any]) -> str:
-    rows = []
-    for ds, col in _COL_ORDER:
-        col_results = all_results.get(ds, {}).get(col, {})
-        if not col_results:
-            continue
-        present = [m for m in MAIN_MODELS if m in col_results]
-        any_variant = col_results[present[0]] if present else next(iter(col_results.values()))
-        wc_real = any_variant["wc_mean_real"]
-        wc_syn = _mean_over_variants(col_results, present, "wc_mean_synthetic")
-        mattr_real = any_variant["mattr_real"]
-        mattr_syn = _mean_over_variants(col_results, present, "mattr_synthetic")
-        d2_real = any_variant["distinct2_real"]
-        d2_syn = _mean_over_variants(col_results, present, "distinct2_synthetic")
-        label = f"{_DS_MACRO[ds]} ({col.replace('_', chr(92)+'_')})"
-        rows.append(
-            f"{label:32} & {_fmt(wc_real, 1)} & {_fmt(wc_syn, 1)} & "
-            f"{_fmt(mattr_real, 3)} & {_fmt(mattr_syn, 3)} & "
-            f"{_fmt(d2_real, 3)} & {_fmt(d2_syn, 3)} \\\\"
-        )
-    body = "\n".join(rows)
-    return r"""\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{\textbf{Free-text Linguistic quality.} Avg.\ words is the mean word count per entry. MATTR (moving-average type-token ratio) measures lexical diversity as the fraction of unique word types within a sliding window of text; higher values indicate a more varied vocabulary. Distinct-2 measures phrase repetition as the fraction of unique word bigrams within a document; higher values indicate less repetitive text. Each synthetic cell reports the mean across \Gfl, \GPT, and \Qfourteen.}
-\label{tab:linguistic-quality}
-\begin{tabular}{lcccccc}
-\toprule
- & \multicolumn{2}{c}{Words} & \multicolumn{2}{c}{MATTR} & \multicolumn{2}{c}{Distinct-2} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
-\textbf{Dataset (column)} & \textbf{Real} & \textbf{Synth} & \textbf{Real} & \textbf{Synth} & \textbf{Real} & \textbf{Synth} \\ \midrule
-""" + body + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n"
-
-
-def build_ablation_table(all_results: dict[str, Any]) -> str:
-    ds_order = DATASETS
-    cols_by_ds = {
-        "adult_with_three": ["job_description", "daily_tasks", "work_snippet"],
-        "Airbnb": ["name", "amenities"], "consumer_complaint": ["consumer_complaint_narrative"],
-        "fake_job_postings": ["description"], "Kickstarter": ["name"],
-        "netflix_titles": ["title", "cast", "description"],
-    }
-    gap_rows = []
-    for ds in ds_order:
-        gaps5, gaps0 = [], []
-        for col in cols_by_ds[ds]:
-            col_results = all_results.get(ds, {}).get(col, {})
-            if K0_BASE_MODEL in col_results and K0_MODEL in col_results:
-                real = col_results[K0_BASE_MODEL]["wc_mean_real"]
-                gaps5.append(abs(col_results[K0_BASE_MODEL]["wc_mean_synthetic"] - real))
-                gaps0.append(abs(col_results[K0_MODEL]["wc_mean_synthetic"] - real))
-        if not gaps5:
-            continue
-        gap5m, gap0m = float(np.mean(gaps5)), float(np.mean(gaps0))
-        gap_rows.append(f"{_DS_MACRO[ds]:12} & {_fmt(gap5m,1)} & {_fmt(gap0m,1)} \\\\")
-    body = "\n".join(gap_rows)
-    return r"""\begin{table}[htbp]
-\centering
-\small
-\caption{\textbf{Retrieval ablation: word count.} Unsigned gap between mean synthetic word count and the real reference value, averaged across each dataset's free-text columns, for the \Gfl generator with ($k=5$) and without ($k=0$) retrieval context. Lower is closer to real. Real reference values are reported in Table~\ref{tab:linguistic-quality}. MATTR and Distinct-2 showed no consistent direction between $k=5$ and $k=0$ across datasets and are omitted here; see Table~\ref{tab:linguistic-quality} for their $k=5$ values.}
-\label{tab:k0-linguistic}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Dataset} & \textbf{Gap ($k=5$)} & \textbf{Gap ($k=0$)} \\ \midrule
-""" + body + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n"
-
-
-_GEN_LABEL = {"gemini-3.1-flash-lite": r"\Gfl", "gpt-6-luna": r"\GPT",
-              "Qwen/Qwen2.5-14B-Instruct": r"\Qfourteen"}
-
-
-def build_combined_generator_table(all_results: dict[str, Any]) -> str:
-    """Single compact appendix table with per-generator synthetic values only
-    (no Real columns -- Real is already reported once in Table~tab:linguistic-quality)."""
-    rows = []
-    for ds, col in _COL_ORDER:
-        col_results = all_results.get(ds, {}).get(col, {})
-        if not col_results:
-            continue
-        col_disp = col.replace("consumer_complaint_narrative", "narrative").replace("_", chr(92) + "_")
-        label = f"{_DS_MACRO[ds]} ({col_disp})"
-        cells = []
-        for field, nd in (("wc_mean_synthetic", 1), ("mattr_synthetic", 3), ("distinct2_synthetic", 3)):
-            for model in MAIN_MODELS:
-                v = col_results.get(model, {}).get(field, float("nan"))
-                cells.append(_fmt(v, nd))
-        rows.append(f"{label:32} & " + " & ".join(cells) + " \\\\")
-    body = "\n".join(rows)
-    return r"""\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{\textbf{Free-text Linguistic quality by generator.} Synthetic values for \Gfl, \GPT, and \Qfourteen individually; real-value references are reported once in Table~\ref{tab:linguistic-quality} and omitted here for space. \GPT's \dsComplaint value uses a separate $300$-row sample, as noted in Table~\ref{tab:linguistic-quality}.}
-\label{tab:linguistic-quality-bygen}
-\begin{tabular}{lccc ccc ccc}
-\toprule
- & \multicolumn{3}{c}{Words} & \multicolumn{3}{c}{MATTR} & \multicolumn{3}{c}{Distinct-2} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
-\textbf{Dataset (column)} & \Gfl & \GPT & \Qfourteen & \Gfl & \GPT & \Qfourteen & \Gfl & \GPT & \Qfourteen \\ \midrule
-""" + body + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n"
-
-
-def write_latex(all_results: dict[str, Any]) -> None:
-    main_table = build_main_table(all_results)
-    ablation_table = build_ablation_table(all_results)
-    per_gen_table = build_combined_generator_table(all_results)
-
-    methods_para = r"""\subsection{Linguistic quality metrics}
-\label{app:linguistic-quality}
-
-For each free-text column, we compare surface-level linguistic properties of the synthetic text with those of the real data, motivated by evidence that LLM-generated text is less lexically and syntactically diverse than human text~\citep{guo2025linguisticdiversity,shaib2024templates}. We report the mean document length (whitespace word count), lexical diversity using the moving-average type--token ratio (MATTR)~\citep{covington2010mattr} with a window of 100 lowercased word tokens (a separate, regex-based tokenizer from the whitespace word-count above, chosen to avoid inflating apparent diversity on punctuation- or list-like fields such as \dsAirbnb amenities), and phrase repetition with corpus-level Distinct-2, the fraction of unique within-document bigrams. Unlike the structured-data fidelity metrics, free-text generation does not fit a model to a training split -- retrieval only reads individual real examples at generation time -- so we report real-holdout and synthetic values directly rather than using a train-vs-holdout calibration baseline.
-
-Because type--token statistics depend on text length, both lexical metrics are computed at a fixed token budget equal to the smallest token count among all corpora compared for that column (the real holdout data and every synthetic variant, including the $k=0$ ablation). Each corpus is sampled to this budget by shuffling whole documents, and results are averaged over five random seeds.
-"""
-
-    results_para = r"""\subsection{Linguistic quality results}
-\label{app:linguistic-quality-results}
-
-Table~\ref{tab:linguistic-quality} reports the three Linguistic quality metrics across the three $k=5$ NIFTSy configurations, and Table~\ref{tab:k0-linguistic} compares word count with and without retrieval for the \Gfl generator; MATTR and Distinct-2 showed no consistent direction between retrieval settings across datasets and are omitted from that comparison. Table~\ref{tab:linguistic-quality-bygen} reports the complete per-generator results underlying Table~\ref{tab:linguistic-quality}'s averages.
-"""
-
-    out = "% AUTO-GENERATED by source/metrics/run_linguistic_quality.py -- not included from main.tex.\n"
-    out += "% Paste the relevant pieces into main.tex (near tab:full-quality and tab:k0-ablation,\n"
-    out += "% and into the evaluation-details / k0-ablation appendices) once reviewed.\n\n"
-    out += "\\paragraph{Linguistic quality.}\n% TODO: one lead-in sentence, see app:linguistic-quality-results for a starting point.\n\n"
-    out += main_table + "\n" + ablation_table + "\n" + methods_para + "\n" + results_para
-    out += "\n" + per_gen_table
-
-    TEX_OUTPUT_PATH.write_text(out)
-    print(f"Saved: {TEX_OUTPUT_PATH}")
-
-
 def main() -> None:
     cfg = yaml.safe_load(CONFIG_PATH.read_text())
     random_state = int(cfg.get("random_state", 42))
@@ -491,8 +349,6 @@ def main() -> None:
     out_path = OUTPUT_DIR / "results.json"
     out_path.write_text(json.dumps(all_results, indent=2))
     print(f"\nSaved: {out_path}")
-
-    write_latex(all_results)
 
 
 if __name__ == "__main__":

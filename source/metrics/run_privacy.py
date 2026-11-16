@@ -12,7 +12,9 @@ The real data is capped and split exactly as in the other metric scripts
 holdout_fraction and random_state). NPGC is fit and sampled exactly as in
 run_full.py (configs/tabular.yml settings, unseeded), and the synthetic set has
 min(real rows, 20,000) rows, as in NIFTSy. Each run (--run 1, 2, 3) fits and
-samples NPGC once; the paper reports the mean over the three runs. The MIA is
+samples NPGC once; the paper reports the mean over the three runs. The
+identical-match rate is reported with mostlyai-qa's holdout references (synthetic
+rows identical to a holdout row; training rows identical to a holdout row). The MIA is
 reported on all structured columns and, separately, without high-cardinality
 label columns (see main()).
 
@@ -108,6 +110,8 @@ def main() -> None:
         "n_holdout": int(len(real_holdout)),
         "n_synthetic": int(len(synthetic_df)),
         "identical_matches": qa_metrics["identical_matches"],
+        "identical_matches_holdout": qa_metrics["identical_matches_holdout"],
+        "identical_matches_training_holdout": qa_metrics["identical_matches_training_holdout"],
         "dcr_share": qa_metrics["dcr_share"],
         "qa_repeats": qa_metrics["n_repeats"],
         "qa_runs": qa_metrics["runs"],
@@ -115,7 +119,8 @@ def main() -> None:
         "high_cardinality_label_columns": label_columns,
         "mia_without_label_columns": mia_without_labels,
     }
-    print(f"Identical matches : {result['identical_matches']}")
+    print(f"Identical matches : {result['identical_matches']} "
+          f"(holdout reference {result['identical_matches_holdout']})")
     print(f"DCR share         : {result['dcr_share']:.4f}")
     print(f"MIA worst-case    : {mia['mia_auroc_worst_case']:.4f}")
     if mia_without_labels:

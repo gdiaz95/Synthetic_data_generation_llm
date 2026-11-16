@@ -1,0 +1,37 @@
+{
+  "dataset_name": "Spotify",
+  "generator_model": "gemini-3.1-flash-lite",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "Qwen/Qwen2.5-14B-Instruct",
+    "judge_provider": "local",
+    "usage": {
+      "prompt_tokens": 89995,
+      "completion_tokens": 1716,
+      "thinking_tokens": 0,
+      "total_tokens": 91711,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "local",
+      "accuracy": 0.7265625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 186,
+      "incorrect": 70,
+      "predicted_real": 76,
+      "predicted_synthetic": 180,
+      "true_real_predicted_real": 67,
+      "true_real_predicted_synthetic": 61,
+      "true_synthetic_predicted_real": 9,
+      "true_synthetic_predicted_synthetic": 119,
+      "failed_to_parse": 0
+    }
+  }
+}

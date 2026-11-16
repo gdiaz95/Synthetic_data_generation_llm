@@ -839,9 +839,13 @@ class SingleGPUServer:
            )
 
            usage = data.get("usage") or {}
+           # OpenAI includes reasoning tokens in completion_tokens; record them separately as
+           # thinking_tokens (as for Gemini), so completion_tokens counts only visible output.
+           reasoning = int((usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0)
            self._record_usage(
                prompt_tokens=usage.get("prompt_tokens", 0),
-               completion_tokens=usage.get("completion_tokens", 0),
+               completion_tokens=int(usage.get("completion_tokens", 0) or 0) - reasoning,
+               thinking_tokens=reasoning,
                requests=1,
            )
 
@@ -889,9 +893,13 @@ class SingleGPUServer:
 
            usage = getattr(response, "usage", None)
            if usage is not None:
+               # Reasoning tokens are included in completion_tokens; record them separately.
+               details = getattr(usage, "completion_tokens_details", None)
+               reasoning = int(getattr(details, "reasoning_tokens", 0) or 0)
                self._record_usage(
                    prompt_tokens=getattr(usage, "prompt_tokens", 0),
-                   completion_tokens=getattr(usage, "completion_tokens", 0),
+                   completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0) - reasoning,
+                   thinking_tokens=reasoning,
                    requests=1,
                )
            else:

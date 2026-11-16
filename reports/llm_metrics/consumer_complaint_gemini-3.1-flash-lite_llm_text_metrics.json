@@ -1,0 +1,53 @@
+{
+  "dataset_name": "consumer_complaint",
+  "model": "gemini-3.1-flash-lite",
+  "real_data_path": "data/raw/consumer_complaint.csv",
+  "synthetic_data_path": "data/processed/consumer_complaint_gemini-3.1-flash-lite.csv",
+  "free_text_columns": [
+    "consumer_complaint_narrative"
+  ],
+  "structured_columns": [
+    "product",
+    "sub_product",
+    "issue",
+    "company",
+    "state",
+    "tags",
+    "consumer_consent_provided",
+    "submitted_via",
+    "company_response_to_consumer",
+    "timely_response",
+    "consumer_disputed",
+    "received_year",
+    "received_month",
+    "received_day"
+  ],
+  "bertscore": {
+    "consumer_complaint_narrative": {
+      "bertscore_precision_mean": 0.7301120758056641,
+      "bertscore_recall_mean": 0.6637166738510132,
+      "bertscore_f1_mean": 0.6934205889701843,
+      "bertscore_f1_std": 0.06300995498895645,
+      "bertscore_model": "distilbert-base-uncased",
+      "n_synthetic": 19999,
+      "n_reference_pool": 1130
+    }
+  },
+  "mauve": {
+    "consumer_complaint_narrative": {
+      "mauve_score": 0.006004075530388366,
+      "n_synthetic_sampled": 500,
+      "n_real_sampled": 500
+    }
+  },
+  "privacy_nndr": {
+    "nndr_synthetic_mean": 1.1717938243568085,
+    "nndr_synthetic_median": 1.1223224689645488,
+    "nndr_synthetic_share_below_threshold": 0.006,
+    "nndr_holdout_mean": 0.8219322602565393,
+    "nndr_holdout_median": 0.793360289055738,
+    "nndr_holdout_share_below_threshold": 0.1135,
+    "nndr_threshold": 0.5,
+    "n_structured_columns_used": 14
+  }
+}

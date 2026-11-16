@@ -1,0 +1,37 @@
+{
+  "dataset_name": "netflix_titles",
+  "generator_model": "gemini-3.1-flash-lite_k0",
+  "whole_row_only": true,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 104809,
+      "completion_tokens": 26853,
+      "thinking_tokens": 0,
+      "total_tokens": 131662,
+      "requests": 256
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {},
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.953125,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 244,
+      "incorrect": 12,
+      "predicted_real": 116,
+      "predicted_synthetic": 140,
+      "true_real_predicted_real": 116,
+      "true_real_predicted_synthetic": 12,
+      "true_synthetic_predicted_real": 0,
+      "true_synthetic_predicted_synthetic": 128,
+      "failed_to_parse": 0
+    }
+  }
+}

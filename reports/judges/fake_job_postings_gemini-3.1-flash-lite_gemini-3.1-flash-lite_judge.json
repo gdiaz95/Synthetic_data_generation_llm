@@ -1,0 +1,57 @@
+{
+  "dataset_name": "fake_job_postings",
+  "generator_model": "gemini-3.1-flash-lite",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "gemini-3.1-flash-lite",
+    "judge_provider": "gemini",
+    "usage": {
+      "prompt_tokens": 200676,
+      "completion_tokens": 2758,
+      "thinking_tokens": 282212,
+      "total_tokens": 485646,
+      "requests": 512
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "description": {
+        "task": "free_text_column",
+        "target": "description",
+        "model": "gemini-3.1-flash-lite",
+        "provider": "gemini",
+        "accuracy": 0.73046875,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 187,
+        "incorrect": 69,
+        "predicted_real": 187,
+        "predicted_synthetic": 69,
+        "true_real_predicted_real": 123,
+        "true_real_predicted_synthetic": 5,
+        "true_synthetic_predicted_real": 64,
+        "true_synthetic_predicted_synthetic": 64,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "accuracy": 0.69140625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 177,
+      "incorrect": 79,
+      "predicted_real": 191,
+      "predicted_synthetic": 65,
+      "true_real_predicted_real": 120,
+      "true_real_predicted_synthetic": 8,
+      "true_synthetic_predicted_real": 71,
+      "true_synthetic_predicted_synthetic": 57,
+      "failed_to_parse": 0
+    }
+  }
+}

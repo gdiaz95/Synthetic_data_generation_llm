@@ -1,0 +1,57 @@
+{
+  "dataset_name": "fake_job_postings",
+  "generator_model": "Qwen/Qwen2.5-14B-Instruct",
+  "whole_row_only": false,
+  "llm_judge": {
+    "judge_model": "gpt-6-luna",
+    "judge_provider": "openai",
+    "usage": {
+      "prompt_tokens": 167392,
+      "completion_tokens": 58636,
+      "thinking_tokens": 0,
+      "total_tokens": 226028,
+      "requests": 512
+    },
+    "max_examples_per_class": 128,
+    "free_text_columns": {
+      "description": {
+        "task": "free_text_column",
+        "target": "description",
+        "model": "gpt-6-luna",
+        "provider": "openai",
+        "accuracy": 0.97265625,
+        "n_examples": 256,
+        "n_real": 128,
+        "n_synthetic": 128,
+        "correct": 249,
+        "incorrect": 7,
+        "predicted_real": 123,
+        "predicted_synthetic": 133,
+        "true_real_predicted_real": 122,
+        "true_real_predicted_synthetic": 6,
+        "true_synthetic_predicted_real": 1,
+        "true_synthetic_predicted_synthetic": 127,
+        "failed_to_parse": 0
+      }
+    },
+    "whole_row": {
+      "task": "whole_row",
+      "target": "__whole_row__",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "accuracy": 0.9765625,
+      "n_examples": 256,
+      "n_real": 128,
+      "n_synthetic": 128,
+      "correct": 250,
+      "incorrect": 6,
+      "predicted_real": 124,
+      "predicted_synthetic": 132,
+      "true_real_predicted_real": 123,
+      "true_real_predicted_synthetic": 5,
+      "true_synthetic_predicted_real": 1,
+      "true_synthetic_predicted_synthetic": 127,
+      "failed_to_parse": 0
+    }
+  }
+}

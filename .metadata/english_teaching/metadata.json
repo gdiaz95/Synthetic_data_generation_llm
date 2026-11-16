@@ -1,0 +1,11 @@
+{
+  "dataset_name": "english_teaching",
+  "free_text_columns": [],
+  "max_words_generation": 80,
+  "target_column": "Label",
+  "shape": [
+    3580,
+    7
+  ],
+  "pii_columns": []
+}
