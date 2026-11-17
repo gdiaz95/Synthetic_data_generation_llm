@@ -17,8 +17,8 @@ All reports are written by the two experiment scripts:
 
 | Script | Steps |
 |---|---|
-| `experiments/run_metrics_billing.sh` | Hosted-API steps: Flash-Lite and Luna generation, Flash-Lite and Argon and Luna judges, hosted runtime benchmark |
-| `experiments/run_metrics_no_billing.sh` | Local steps: Qwen-14B and GReaT (Qwen-7B) generation, Qwen-14B judge, structured metrics, privacy, BERTScore/MAUVE, linguistic quality, local runtime benchmark, significance tests |
+| `experiments/run_metrics_billing.sh` | Hosted-API steps: Flash and Luna generation, Flash and Argon and Luna judges, hosted runtime benchmark |
+| `experiments/run_metrics_no_billing.sh` | Local steps: Q-14B and GReaT (Q-7B) generation, Q-14B judge, structured metrics, privacy, BERTScore/MAUVE, linguistic quality, local runtime benchmark, significance tests |
 
 Each step is skipped when its report already exists, so rerunning a script only
 fills in what is missing. `run_manifest.csv` is the record of a final run of both
@@ -28,10 +28,10 @@ two scripts account for every report here.
 
 ## Files
 
-Model names in file names: `gemini-3.1-flash-lite` (Flash-Lite), `gpt-6-luna`
-(Luna), `Qwen-Qwen2.5-14B-Instruct` (Qwen-14B), `Qwen-Qwen2.5-7B-Instruct_great`
-(the GReaT baseline, Qwen-7B), `gemini-4-argon` (Argon, judge only). The suffix
-`_k0` marks the retrieval ablation (Flash-Lite without retrieval).
+Model names in file names: `gemini-3.1-flash-lite` (Flash), `gpt-6-luna`
+(Luna), `Qwen-Qwen2.5-14B-Instruct` (Q-14B), `Qwen-Qwen2.5-7B-Instruct_great`
+(the GReaT baseline, Q-7B), `gemini-4-argon` (Argon, judge only). The suffix
+`_k0` marks the retrieval ablation (Flash without retrieval).
 
 | Path | Contents |
 |---|---|

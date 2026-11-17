@@ -64,10 +64,10 @@ JUDGE_MACRO = {
     "Qwen/Qwen2.5-14B-Instruct": r"\Qfourteen",
 }
 JUDGE_LABEL = {
-    "gemini-3.1-flash-lite": "Flash-Lite",
+    "gemini-3.1-flash-lite": "Flash",
     "gemini-4-argon": "Argon",
     "gpt-6-luna": "Luna",
-    "Qwen/Qwen2.5-14B-Instruct": "Qwen-14B",
+    "Qwen/Qwen2.5-14B-Instruct": "Q-14B",
 }
 # Judge style names used in writing/images/judge_by_dataset.tex.
 JUDGE_PLOT_STYLE = {
